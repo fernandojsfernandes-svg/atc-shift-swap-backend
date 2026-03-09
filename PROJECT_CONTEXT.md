@@ -117,3 +117,40 @@ Backend funcional com:
 - deteção de ciclos de swap
 
 Sistema pronto para evolução futura.
+---
+
+# Development Status
+
+Current state of the project:
+
+Implemented:
+
+- FastAPI backend
+- JWT authentication
+- User management
+- Team management
+- Monthly schedules
+- Shift management
+- Swap request creation
+- Secure swap acceptance with transaction
+- Operational rule validation (T→N, Mt→N)
+- Swap preferences
+- Swap suggestions
+- Detection of 3-user swap cycles
+
+Technical improvements implemented:
+
+- accepter_id stored in SwapRequest
+- SQLAlchemy relationships improved
+- prevention of duplicate swaps
+- prevention of swaps for past shifts
+- filtering own swaps from open list
+- transaction safety in swap acceptance
+
+Project infrastructure:
+
+- Git repository initialized
+- GitHub repository created
+- README.md created
+- .gitignore configured
+- PROJECT_CONTEXT.md created
