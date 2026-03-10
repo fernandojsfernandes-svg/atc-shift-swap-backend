@@ -1,3 +1,5 @@
+from itertools import cycle
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
@@ -41,17 +43,6 @@ def create_swap_request(
     #     detail="You can only request swap for your own shift"
     # )
 
-    # Já foi aceite?
-    existing_accepted = db.query(SwapRequest).filter(
-        SwapRequest.shift_id == swap.shift_id,
-        SwapRequest.status == SwapStatus.ACCEPTED
-    ).first()
-
-    if existing_accepted:
-        raise HTTPException(
-            status_code=400,
-            detail="This shift has already been swapped"
-        )
 
     # Já existe OPEN?
     existing_open = db.query(SwapRequest).filter(
@@ -334,6 +325,7 @@ def find_swap_cycles(
         shifts_by_id = {s.id: s for s in shifts}
 
         cycles = []
+        seen_cycles = set()
 
         for swap_a in swaps:
 
@@ -374,11 +366,19 @@ def find_swap_cycles(
                     if shift_c.data != shift_a.data:
                         continue
 
-                    cycles.append({
-                        "cycle": [swap_a.id, swap_b.id, swap_c.id],
-                        "date": str(shift_a.data),
-                        "message": "3-way swap possible"
-                    })
+                    cycle = [swap_a.id, swap_b.id, swap_c.id]
+
+                    # chave normalizada para evitar duplicados
+                    cycle_key = tuple(sorted(cycle))
+
+                    if cycle_key not in seen_cycles:
+                        seen_cycles.add(cycle_key)
+
+                        cycles.append({
+                            "cycle": cycle,
+                            "date": str(shift_a.data),
+                            "message": "3-way swap possible"
+                        })
 
         return {"cycles": cycles}
 
