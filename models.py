@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
@@ -7,6 +7,7 @@ from sqlalchemy import Enum as SQLEnum
 
 class SwapStatus(str, Enum):
     OPEN = "OPEN"
+    PROPOSED = "PROPOSED"
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
 
@@ -110,3 +111,27 @@ class SwapPreference(Base):
 
     swap_request = relationship("SwapRequest", back_populates="preferences")
     shift_type = relationship("ShiftType")
+
+
+class CycleProposal(Base):
+    __tablename__ = "cycle_proposals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="PROPOSED")
+
+
+class CycleSwap(Base):
+    __tablename__ = "cycle_swaps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cycle_id = Column(Integer, ForeignKey("cycle_proposals.id"))
+    swap_id = Column(Integer, ForeignKey("swap_requests.id"))
+
+
+class CycleConfirmation(Base):
+    __tablename__ = "cycle_confirmations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cycle_id = Column(Integer, ForeignKey("cycle_proposals.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    confirmed = Column(Boolean, default=False)

@@ -1,14 +1,23 @@
-from itertools import cycle
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session, joinedload
 from datetime import date, timedelta
 
 from database import get_db
-from models import SwapRequest, Shift, SwapStatus, User, ShiftType, SwapPreference
+from models import (
+    SwapRequest,
+    Shift,
+    SwapStatus,
+    User,
+    ShiftType,
+    SwapPreference,
+    CycleProposal,
+    CycleSwap,
+    CycleConfirmation
+)
 from schemas.swap import SwapCreate, SwapRead
 from security import get_current_user
 from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
+from services.swap_engine import detect_swap_cycles
 
 router = APIRouter(
     prefix="/swap-requests",
@@ -36,19 +45,27 @@ def create_swap_request(
             detail="Cannot create swap for past shifts"
         )
 
-    # Só pode pedir swap do próprio turno
-    #if shift.user_id != current_user.id:
-    #   raise HTTPException(
-    #      status_code=400,
-    #     detail="You can only request swap for your own shift"
-    # )
+    # verificar se turno já está numa proposta de ciclo
+    existing_cycle = db.query(CycleSwap).join(
+        SwapRequest, CycleSwap.swap_id == SwapRequest.id
+    ).join(
+        CycleProposal, CycleSwap.cycle_id == CycleProposal.id
+    ).filter(
+        SwapRequest.shift_id == swap.shift_id,
+        CycleProposal.status == "PROPOSED"
+    ).first()
 
+    if existing_cycle:
+        raise HTTPException(
+            status_code=400,
+            detail="This shift is already part of a pending cycle proposal"
+        )
 
     # Já existe OPEN?
     existing_open = db.query(SwapRequest).filter(
-    SwapRequest.shift_id == swap.shift_id,
-    SwapRequest.status == SwapStatus.OPEN
-).first()
+        SwapRequest.shift_id == swap.shift_id,
+        SwapRequest.status == SwapStatus.OPEN
+    ).first()
 
     if existing_open:
         raise HTTPException(
@@ -317,70 +334,24 @@ def find_swap_cycles(
 
     try:
 
-        swaps = db.query(SwapRequest).filter(
+        swaps = db.query(SwapRequest).options(
+            joinedload(SwapRequest.shift)
+        ).filter(
             SwapRequest.status == SwapStatus.OPEN
         ).all()
 
-        shifts = db.query(Shift).all()
-        shifts_by_id = {s.id: s for s in shifts}
+        cycles = detect_swap_cycles(swaps)
 
-        cycles = []
-        seen_cycles = set()
+        result = []
 
-        for swap_a in swaps:
+        for cycle in cycles:
 
-            shift_a = shifts_by_id.get(swap_a.shift_id)
-            if not shift_a:
-                continue
+            result.append({
+                "cycle": cycle,
+                "message": "swap cycle possible"
+            })
 
-            for swap_b in swaps:
-
-                if swap_b.id == swap_a.id:
-                    continue
-
-                shift_b = shifts_by_id.get(swap_b.shift_id)
-                if not shift_b:
-                    continue
-
-                if shift_a.data != shift_b.data:
-                    continue
-
-                if shift_a.codigo == shift_b.codigo:
-                    continue
-
-                for swap_c in swaps:
-
-                    if swap_c.id in [swap_a.id, swap_b.id]:
-                        continue
-
-                    shift_c = shifts_by_id.get(swap_c.shift_id)
-                    if not shift_c:
-                        continue
-
-                    if shift_b.data != shift_c.data:
-                        continue
-
-                    if shift_c.codigo == shift_a.codigo:
-                        continue
-
-                    if shift_c.data != shift_a.data:
-                        continue
-
-                    cycle = [swap_a.id, swap_b.id, swap_c.id]
-
-                    # chave normalizada para evitar duplicados
-                    cycle_key = tuple(sorted(cycle))
-
-                    if cycle_key not in seen_cycles:
-                        seen_cycles.add(cycle_key)
-
-                        cycles.append({
-                            "cycle": cycle,
-                            "date": str(shift_a.data),
-                            "message": "3-way swap possible"
-                        })
-
-        return {"cycles": cycles}
+        return {"cycles": result}
 
     except Exception as e:
         return {"error": str(e)}
@@ -470,3 +441,238 @@ def execute_cycle(cycle: list[int], db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Cycle execution failed")
 
     return {"message": "Swap cycle executed successfully"}
+
+@router.post("/cycles/propose")
+def propose_cycle(
+    cycle: list[int],
+    db: Session = Depends(get_db)
+):
+
+    # buscar swaps abertos
+    swaps = db.query(SwapRequest).filter(
+        SwapRequest.id.in_(cycle),
+        SwapRequest.status == SwapStatus.OPEN
+    ).all()
+
+    if len(swaps) != len(cycle):
+        raise HTTPException(
+            status_code=400,
+            detail="Some swaps are not available"
+        )
+
+    # criar proposta de ciclo
+    proposal = CycleProposal(
+        status="PROPOSED"
+    )
+    db.add(proposal)
+    db.flush()  # gera proposal.id
+
+    involved_users = set()
+
+    # ligar swaps ao ciclo e recolher todos os utilizadores
+    for swap in swaps:
+        # criar ligação Swap <-> Cycle
+        db.add(CycleSwap(
+            cycle_id=proposal.id,
+            swap_id=swap.id
+        ))
+
+        # adicionar requester
+        involved_users.add(swap.requester_id)
+
+        # adicionar accepter se existir
+        if swap.accepter_id:
+            involved_users.add(swap.accepter_id)
+
+    # se houver utilizadores adicionais do ciclo que devem participar,
+    # podes adicioná-los manualmente aqui:
+    # involved_users.update([user_id_1, user_id_2, ...])
+
+    # criar confirmações para cada utilizador do ciclo
+    for user_id in involved_users:
+        db.add(CycleConfirmation(
+            cycle_id=proposal.id,
+            user_id=user_id,
+            confirmed=False
+        ))
+
+    # marcar swaps como PROPOSED
+    for swap in swaps:
+        swap.status = SwapStatus.PROPOSED
+
+    db.commit()
+
+    return {
+        "cycle_id": proposal.id,
+        "swaps": cycle,
+        "users": list(involved_users),
+        "status": "PROPOSED"
+    }
+
+@router.post("/cycles/{cycle_id}/confirm")
+def confirm_cycle(
+    cycle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    confirmation = db.query(CycleConfirmation).filter(
+        CycleConfirmation.cycle_id == cycle_id,
+        CycleConfirmation.user_id == current_user.id
+    ).first()
+
+    if not confirmation:
+        raise HTTPException(
+            status_code=404,
+            detail="Confirmation not found for this user"
+        )
+
+    confirmation.confirmed = 1
+    db.flush()
+
+    # verificar se todos confirmaram
+    confirmations = db.query(CycleConfirmation).filter(
+        CycleConfirmation.cycle_id == cycle_id
+    ).all()
+
+    all_confirmed = all(c.confirmed for c in confirmations)
+
+    if all_confirmed:
+
+        cycle_swaps = db.query(CycleSwap).filter(
+            CycleSwap.cycle_id == cycle_id
+        ).all()
+
+        swap_ids = [cs.swap_id for cs in cycle_swaps]
+
+        # executar ciclo
+        execute_cycle(swap_ids, db)
+
+        proposal = db.query(CycleProposal).filter(
+            CycleProposal.id == cycle_id
+        ).first()
+
+        proposal.status = "EXECUTED"
+
+    db.commit()
+
+    return {
+        "cycle_id": cycle_id,
+        "user": current_user.id,
+        "confirmed": True,
+        "all_confirmed": all_confirmed
+    }
+@router.post("/cycles/propose")
+def propose_cycle(
+    cycle: list[int],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    swaps = db.query(SwapRequest).filter(SwapRequest.id.in_(cycle)).all()
+
+    if len(swaps) != len(cycle):
+        raise HTTPException(status_code=404, detail="One or more swaps not found")
+
+    proposal = CycleProposal(status="PROPOSED")
+    db.add(proposal)
+    db.commit()
+    db.refresh(proposal)
+
+    users_involved = set()
+
+    for swap in swaps:
+
+        cycle_swap = CycleSwap(
+            cycle_id=proposal.id,
+            swap_id=swap.id
+        )
+
+        db.add(cycle_swap)
+
+        users_involved.add(swap.requester_id)
+
+        swap.status = SwapStatus.PROPOSED
+
+    db.commit()
+
+    for user_id in users_involved:
+
+        confirmation = CycleConfirmation(
+            cycle_id=proposal.id,
+            user_id=user_id,
+            confirmed=False
+        )
+
+        db.add(confirmation)
+
+    db.commit()
+
+    return {
+        "cycle_id": proposal.id,
+        "users_involved": list(users_involved),
+        "status": "PROPOSED"
+    }
+@router.post("/cycles/{cycle_id}/confirm")
+def confirm_cycle(
+    cycle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    confirmation = db.query(CycleConfirmation).filter(
+        CycleConfirmation.cycle_id == cycle_id,
+        CycleConfirmation.user_id == current_user.id
+    ).first()
+
+    if not confirmation:
+        raise HTTPException(
+            status_code=404,
+            detail="Confirmation not found"
+        )
+
+    confirmation.confirmed = True
+    db.commit()
+
+    # verificar se todos confirmaram
+    confirmations = db.query(CycleConfirmation).filter(
+        CycleConfirmation.cycle_id == cycle_id
+    ).all()
+
+    if all(c.confirmed for c in confirmations):
+
+        cycle_swaps = db.query(CycleSwap).filter(
+            CycleSwap.cycle_id == cycle_id
+        ).all()
+
+        swap_ids = [cs.swap_id for cs in cycle_swaps]
+
+        swaps = db.query(SwapRequest).filter(
+            SwapRequest.id.in_(swap_ids)
+        ).all()
+
+        shifts = [db.query(Shift).get(s.shift_id) for s in swaps]
+
+        users = [shift.user_id for shift in shifts]
+
+        # rotação
+        rotated_users = users[-1:] + users[:-1]
+
+        for shift, new_user in zip(shifts, rotated_users):
+            shift.user_id = new_user
+
+        for swap in swaps:
+            swap.status = SwapStatus.ACCEPTED
+
+        db.commit()
+
+        return {
+            "status": "EXECUTED",
+            "cycle_id": cycle_id
+        }
+
+    return {
+        "status": "CONFIRMED",
+        "cycle_id": cycle_id,
+        "user": current_user.id
+    }
