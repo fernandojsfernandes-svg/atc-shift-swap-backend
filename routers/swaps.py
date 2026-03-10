@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import timedelta
+from datetime import date, timedelta
+
 from database import get_db
 from models import SwapRequest, Shift, SwapStatus, User, ShiftType, SwapPreference
 from schemas.swap import SwapCreate, SwapRead
-from security import get_current_user, oauth2_scheme
+from security import get_current_user
 from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
 
 router = APIRouter(
@@ -22,23 +22,24 @@ def create_swap_request(
 ):
 
     shift = db.query(Shift).filter(Shift.id == swap.shift_id).first()
-    from datetime import date
-
-    if shift.data < date.today():
-        raise HTTPException(
-        status_code=400,
-        detail="Cannot create swap for past shifts"
-    )
 
     if not shift:
         raise HTTPException(status_code=404, detail="Shift not found")
 
-    # Só pode pedir swap do próprio turno
-    if shift.user_id != current_user.id:
+    from datetime import date
+
+    if shift.data < date.today():
         raise HTTPException(
             status_code=400,
-            detail="You can only request swap for your own shift"
+            detail="Cannot create swap for past shifts"
         )
+
+    # Só pode pedir swap do próprio turno
+    #if shift.user_id != current_user.id:
+    #   raise HTTPException(
+    #      status_code=400,
+    #     detail="You can only request swap for your own shift"
+    # )
 
     # Já foi aceite?
     existing_accepted = db.query(SwapRequest).filter(
@@ -196,8 +197,9 @@ def accept_swap(
 
         db.commit()
 
-    except:
+    except Exception as e:
         db.rollback()
+        print("Swap error:", e)
         raise HTTPException(status_code=500, detail="Swap transaction failed")
 
     return {"message": "Swap completed successfully"}
@@ -382,47 +384,7 @@ def find_swap_cycles(
 
     except Exception as e:
         return {"error": str(e)}
-@router.get("/possible")
-def possible_swaps(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
 
-    allowed_codes = ["M", "T", "N", "MG", "Mt", "DC", "DS"]
-
-    my_shifts = db.query(Shift).filter(
-        Shift.user_id == current_user.id,
-        Shift.codigo.in_(allowed_codes)
-    ).all()
-
-    results = []
-
-    for my_shift in my_shifts:
-
-        other_shifts = db.query(Shift).filter(
-            Shift.data == my_shift.data,
-            Shift.user_id != current_user.id,
-            Shift.codigo.in_(allowed_codes)
-        ).all()
-
-        for other in other_shifts:
-
-            if other.codigo == my_shift.codigo:
-                continue
-
-            other_user = db.query(User).filter(
-                User.id == other.user_id
-            ).first()
-
-            results.append({
-                "date": my_shift.data,
-                "my_shift": my_shift.codigo,
-                "other_shift": other.codigo,
-                "other_user_id": other.user_id,
-                "other_user_name": other_user.nome
-            })
-
-    return results
 @router.get("/possible")
 def possible_swaps(
     db: Session = Depends(get_db),
@@ -464,3 +426,47 @@ def possible_swaps(
             })
 
     return results
+@router.post("/execute-cycle")
+def execute_cycle(cycle: list[int], db: Session = Depends(get_db)):
+
+    swaps = db.query(SwapRequest).filter(SwapRequest.id.in_(cycle)).all()
+
+    if len(swaps) < 2:
+        raise HTTPException(status_code=400, detail="Invalid cycle")
+
+    try:
+
+        shifts = []
+        users = []
+
+        for swap in swaps:
+            shift = db.query(Shift).filter(Shift.id == swap.shift_id).first()
+            shifts.append(shift)
+            users.append(shift.user_id)
+
+        temp_user = -999
+
+        # libertar primeiro turno
+        shifts[0].user_id = temp_user
+        db.flush()
+
+        # mover restantes
+        for i in range(1, len(shifts)):
+            shifts[i].user_id = users[i-1]
+            db.flush()
+
+        # fechar ciclo
+        shifts[0].user_id = users[-1]
+        db.flush()
+
+        for swap in swaps:
+            swap.status = SwapStatus.ACCEPTED
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print("Cycle error:", e)
+        raise HTTPException(status_code=500, detail="Cycle execution failed")
+
+    return {"message": "Swap cycle executed successfully"}
