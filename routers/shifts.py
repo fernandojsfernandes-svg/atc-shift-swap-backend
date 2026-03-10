@@ -43,3 +43,39 @@ def create_shift(shift: ShiftCreate, db: Session = Depends(get_db)):
     db.refresh(new_shift)
 
     return new_shift
+@router.get("/user/{user_id}")
+def get_user_shifts(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+
+    shifts = db.query(Shift).filter(
+        Shift.user_id == user_id
+    ).order_by(Shift.data).all()
+
+    return shifts
+@router.get("/me")
+def my_shifts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    shifts = db.query(Shift).filter(
+        Shift.user_id == current_user.id
+    ).order_by(Shift.data).all()
+
+    return shifts
+@router.get("/me/tradable")
+def my_tradable_shifts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    allowed_codes = ["M", "T", "N", "MG", "Mt", "DC", "DS"]
+
+    shifts = db.query(Shift).filter(
+        Shift.user_id == current_user.id,
+        Shift.codigo.in_(allowed_codes)
+    ).order_by(Shift.data).all()
+
+    return shifts

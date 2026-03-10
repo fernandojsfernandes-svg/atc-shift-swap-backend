@@ -6,7 +6,7 @@ from database import get_db
 from models import SwapRequest, Shift, SwapStatus, User, ShiftType, SwapPreference
 from schemas.swap import SwapCreate, SwapRead
 from security import get_current_user, oauth2_scheme
-from rules.shift_rules import is_next_day_incompatible
+from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
 
 router = APIRouter(
     prefix="/swap-requests",
@@ -171,6 +171,20 @@ def accept_swap(
         original_shift.user_id = current_user.id
         db.flush()
 
+                # verificar 9 dias consecutivos
+        user_shifts = db.query(Shift).filter(
+            Shift.user_id == current_user.id
+        ).all()
+
+        # incluir o turno recebido no swap
+        user_shifts.append(original_shift)
+
+        if exceeds_max_consecutive_days(user_shifts):
+            raise HTTPException(
+                status_code=400,
+                detail="Swap would exceed 9 consecutive working days"
+            )
+
         swap.accepter_id = current_user.id
         swap.status = SwapStatus.ACCEPTED
 
@@ -186,7 +200,6 @@ def accept_swap(
         db.rollback()
         raise HTTPException(status_code=500, detail="Swap transaction failed")
 
-# Troca segura
     return {"message": "Swap completed successfully"}
 
 @router.get("/open", response_model=list[SwapRead])
@@ -309,62 +322,145 @@ def find_swap_cycles(
     db: Session = Depends(get_db)
 ):
 
-    swaps = db.query(SwapRequest).filter(
-        SwapRequest.status == SwapStatus.OPEN
+    try:
+
+        swaps = db.query(SwapRequest).filter(
+            SwapRequest.status == SwapStatus.OPEN
+        ).all()
+
+        shifts = db.query(Shift).all()
+        shifts_by_id = {s.id: s for s in shifts}
+
+        cycles = []
+
+        for swap_a in swaps:
+
+            shift_a = shifts_by_id.get(swap_a.shift_id)
+            if not shift_a:
+                continue
+
+            for swap_b in swaps:
+
+                if swap_b.id == swap_a.id:
+                    continue
+
+                shift_b = shifts_by_id.get(swap_b.shift_id)
+                if not shift_b:
+                    continue
+
+                if shift_a.data != shift_b.data:
+                    continue
+
+                if shift_a.codigo == shift_b.codigo:
+                    continue
+
+                for swap_c in swaps:
+
+                    if swap_c.id in [swap_a.id, swap_b.id]:
+                        continue
+
+                    shift_c = shifts_by_id.get(swap_c.shift_id)
+                    if not shift_c:
+                        continue
+
+                    if shift_b.data != shift_c.data:
+                        continue
+
+                    if shift_c.codigo == shift_a.codigo:
+                        continue
+
+                    if shift_c.data != shift_a.data:
+                        continue
+
+                    cycles.append({
+                        "cycle": [swap_a.id, swap_b.id, swap_c.id],
+                        "date": str(shift_a.data),
+                        "message": "3-way swap possible"
+                    })
+
+        return {"cycles": cycles}
+
+    except Exception as e:
+        return {"error": str(e)}
+@router.get("/possible")
+def possible_swaps(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    allowed_codes = ["M", "T", "N", "MG", "Mt", "DC", "DS"]
+
+    my_shifts = db.query(Shift).filter(
+        Shift.user_id == current_user.id,
+        Shift.codigo.in_(allowed_codes)
     ).all()
 
-    # carregar todos os shifts
-    shifts = db.query(Shift).all()
-    shifts_by_id = {s.id: s for s in shifts}
+    results = []
 
-    cycles = []
+    for my_shift in my_shifts:
 
-    for swap_a in swaps:
+        other_shifts = db.query(Shift).filter(
+            Shift.data == my_shift.data,
+            Shift.user_id != current_user.id,
+            Shift.codigo.in_(allowed_codes)
+        ).all()
 
-        shift_a = shifts_by_id.get(swap_a.shift_id)
-        if not shift_a:
-            continue
+        for other in other_shifts:
 
-        for swap_b in swaps:
-
-            if swap_b.id == swap_a.id:
+            if other.codigo == my_shift.codigo:
                 continue
 
-            shift_b = shifts_by_id.get(swap_b.shift_id)
-            if not shift_b:
+            other_user = db.query(User).filter(
+                User.id == other.user_id
+            ).first()
+
+            results.append({
+                "date": my_shift.data,
+                "my_shift": my_shift.codigo,
+                "other_shift": other.codigo,
+                "other_user_id": other.user_id,
+                "other_user_name": other_user.nome
+            })
+
+    return results
+@router.get("/possible")
+def possible_swaps(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    allowed_codes = ["M", "T", "N", "MG", "Mt", "DC", "DS"]
+
+    my_shifts = db.query(Shift).filter(
+        Shift.user_id == current_user.id,
+        Shift.codigo.in_(allowed_codes)
+    ).all()
+
+    results = []
+
+    for my_shift in my_shifts:
+
+        other_shifts = db.query(Shift).filter(
+            Shift.data == my_shift.data,
+            Shift.user_id != current_user.id,
+            Shift.codigo.in_(allowed_codes)
+        ).all()
+
+        for other in other_shifts:
+
+            if other.codigo == my_shift.codigo:
                 continue
 
-            # A pode trocar com B?
-            if shift_a.data != shift_b.data:
-                continue
+            other_user = db.query(User).filter(
+                User.id == other.user_id
+            ).first()
 
-            if shift_a.codigo == shift_b.codigo:
-                continue
+            results.append({
+                "date": my_shift.data,
+                "my_shift": my_shift.codigo,
+                "other_shift": other.codigo,
+                "other_user_id": other.user_id,
+                "TEST": "HELLO"
+            })
 
-            for swap_c in swaps:
-
-                if swap_c.id in [swap_a.id, swap_b.id]:
-                    continue
-
-                shift_c = shifts_by_id.get(swap_c.shift_id)
-                if not shift_c:
-                    continue
-
-                # verificar ciclo A -> B -> C -> A
-
-                if shift_b.data != shift_c.data:
-                    continue
-
-                if shift_c.codigo == shift_a.codigo:
-                    continue
-
-                if shift_c.data != shift_a.data:
-                    continue
-
-                cycles.append({
-                    "cycle": [swap_a.id, swap_b.id, swap_c.id],
-                    "date": str(shift_a.data),
-                    "message": "3-way swap possible"
-                })
-
-    return cycles
+    return results

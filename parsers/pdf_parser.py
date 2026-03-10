@@ -1,14 +1,21 @@
 import pdfplumber
 from datetime import date
 
-PDF_PATH = "C:/PARSER_ESCALAS/PDF_Escalas/ROTA-E_2026_03.pdf"
+VALID_SHIFT_CODES = {
+    "M",
+    "T",
+    "N",
+    "MG",
+    "Mt",
+    "DC",
+    "DS"
+}
 
-
-def parse_pdf():
+def parse_pdf(pdf_path, year, month):
 
     shifts = []
 
-    with pdfplumber.open(PDF_PATH) as pdf:
+    with pdfplumber.open(pdf_path) as pdf:
 
         page = pdf.pages[0]
 
@@ -33,10 +40,13 @@ def parse_pdf():
                 if not code:
                     continue
 
+                if code not in VALID_SHIFT_CODES:
+                    continue
+
                 shifts.append({
                     "employee": employee,
                     "name": name,
-                    "date": date(2026, 3, i-1),
+                    "date": date(year, month, i-1),
                     "code": code
                 })
 
