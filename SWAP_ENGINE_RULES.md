@@ -1,175 +1,66 @@
 # Swap Engine Rules
 
-This document defines the rules used by the swap engine to detect and execute valid shift swaps between Air Traffic Controllers.
-
-The swap engine must always ensure that the resulting schedules remain operationally valid.
+Rules for detecting and executing shift swaps between Air Traffic Controllers. The engine must keep resulting schedules operationally valid.
 
 ---
 
-# Types of Swaps
+## Types of swaps
 
-The system must support different types of exchanges.
+### Direct swap (most common)
 
-## Direct Swap (Most Common)
+Two controllers exchange shifts. Usually same day; may be different days (e.g. “I give day 5, you give day 12”).
 
-Two controllers exchange shifts on the same day.
+- Example: A has morning 12 Mar, B has evening 12 Mar → after swap, A has evening, B has morning.
+- Flow: one user offers a shift; the other accepts (must have a shift to give in return, respecting day/type rules). Both must confirm.
 
-Example:
+### Multi-user cycle
 
-Controller A
-Has: Morning shift (12 March)
-Wants: Evening shift (12 March)
+Three or more controllers form a cycle: A offers S1 and wants S2, B offers S2 and wants S3, C offers S3 and wants S1 → A→B→C→A.
 
-Controller B
-Has: Evening shift (12 March)
-Wants: Morning shift (12 March)
-
-Swap result:
-
-A ↔ B
-
-This is expected to represent the majority of swap requests.
+- Can be **same day** (three shifts on one date) or **cross-day** (e.g. A gives day 1, B gives day 5, C gives day 10).
+- Each request must express “what I offer” and “what I want” (e.g. a specific shift, or options: “day 7 M or T; day 8 T; day 11 T, M or MG”).
+- Engine detects compatible cycles, **alerts** users (“possible 3-way swap on these dates”), then **each user must confirm** before execution.
 
 ---
 
-## Multi-User Swap Cycle
+## Swap detection logic
 
-Less frequently, swaps may involve multiple controllers across different days.
-
-Example:
-
-Controller A
-Offers: Shift S1
-Wants: Shift S2
-
-Controller B
-Offers: Shift S2
-Wants: Shift S3
-
-Controller C
-Offers: Shift S3
-Wants: Shift S1
-
-This creates a valid cycle:
-
-A → B → C → A
-
-When a valid cycle is detected, the swap engine executes all swaps in the cycle.
+- Each swap request = “user offers shift X, wants shift Y” (or set of acceptable (date, type) options).
+- Model as a directed graph (e.g. offered shift → wanted shift or matching request).
+- Engine: load pending requests → build graph → detect cycles (including N-way and cross-day) → validate constraints → propose cycle → collect confirmations → simulate → validate again → execute or reject.
 
 ---
 
-# Swap Detection Logic
+## Operational constraints (all must hold)
 
-Each swap request represents a relationship:
-
-User offers shift X and wants shift Y
-
-This can be modeled as a directed graph:
-
-X → Y
-
-The swap engine must:
-
-1. Load all pending swap requests
-2. Build a directed graph of requests
-3. Detect cycles in the graph
-4. Validate operational constraints
-5. Execute valid swaps
-6. Update database records
+1. **Ownership** – Controller only offers shifts they currently own.
+2. **One shift per day** – No controller may end up with two shifts on the same day.
+3. **Forbidden sequences** – No T→N or Mt→N next-day (warn user; can allow with explicit confirm). Other pairs may be added later.
+4. **Max 9 consecutive working days** – Working = M, T, N, MG, Mt; DC/DS are rest. Reject if swap would exceed 9.
+5. **Single use** – A shift participates in at most one swap (or one cycle) in a given execution.
+6. **Atomic execution** – For a cycle, either all swaps in the cycle are applied or none (no partial execution).
 
 ---
 
-# Operational Constraints
+## Validation process
 
-Before executing any swap, the engine must verify that the resulting schedules remain valid.
-
-## Shift Ownership
-
-A controller must own the shift they offer.
-
-The system must verify that the shift currently belongs to that controller.
+1. Detect potential cycle (graph cycle detection).
+2. **Simulate** the swap (compute resulting assignment per user).
+3. **Validate** all constraints on the simulated schedule (one per day, no T→N/Mt→N, max 9 days).
+4. If valid → execute (update shift ownership, update swap status) in a single transaction.
+5. If invalid → reject cycle and report reason (e.g. “would exceed 9 consecutive days for user X”).
 
 ---
 
-## No Multiple Shifts Per Day
+## Behaviour
 
-A controller cannot receive more than one shift on the same day.
-
-Example (invalid):
-
-Controller receives both:
-
-12 March Morning
-12 March Evening
+- **Safety first:** Never produce an illegal schedule.
+- **Fairness:** All involved users must confirm before execution.
+- If no valid swap is possible, leave schedules unchanged and inform the user.
 
 ---
 
-## Shift Sequence Restrictions
+## Confirmation and history
 
-Certain shift sequences are not allowed due to operational safety constraints.
-
-Examples include:
-
-T → N
-Mt → N
-
-The engine must verify that the resulting schedule does not create illegal shift transitions.
-
----
-
-## Maximum Consecutive Working Days
-
-Controllers cannot exceed the maximum number of consecutive working days.
-
-Maximum allowed:
-
-9 consecutive working days
-
-If a swap would cause a controller to exceed this limit, the swap must be rejected.
-
----
-
-## Single Use of Shifts
-
-A shift can only participate in one swap cycle.
-
-The same shift cannot be assigned to multiple users during the same swap execution.
-
----
-
-## Atomic Execution
-
-All swaps in a cycle must be executed atomically.
-
-This means:
-
-• Either the entire cycle is executed
-• Or none of the swaps are executed
-
-Partial swaps are not allowed.
-
----
-
-# Swap Validation Process
-
-The swap engine should follow this validation process:
-
-1. Detect potential swap cycle
-2. Simulate the swap
-3. Validate all constraints
-4. If valid → execute swap
-5. If invalid → reject cycle
-
----
-
-# Expected Behaviour
-
-The swap engine must prioritize:
-
-• Safety
-• Schedule validity
-• Fairness between controllers
-
-The engine must never produce an illegal schedule.
-
-If no valid swap is possible, the system must leave schedules unchanged.
+- Every swap (direct or cycle) requires confirmation from all parties. No “record only” without the other side accepting.
+- Swap history is kept; can be cleared or archived each month (implementation detail in PROJECT_CONTEXT).

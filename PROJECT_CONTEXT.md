@@ -1,162 +1,54 @@
-# ATC Shift Swap Backend
+# ATC Shift Swap Backend – Project Context
 
-## Estado atual do desenvolvimento
+## Purpose
 
-Últimas melhorias implementadas:
-- guardar accepter_id no SwapRequest
-- transação segura no accept_swap
-- bloquear swaps passados
-- evitar swaps duplicados
-- endpoint /open não mostra swaps do próprio utilizador
+Backend for managing rosters and shift swaps between Air Traffic Controllers (ATCOs). Supports authentication, roster import from PDFs, swap requests (direct and multi-person cycles), and enforcement of operational rules.
 
-## Objetivo
-Backend para gestão de escalas e trocas de turnos entre controladores de tráfego aéreo.
+## Domain rules (agreed with product)
 
-Permite:
-- autenticação de utilizadores
-- gestão de turnos
-- criação de pedidos de troca
-- aceitação segura de swaps
-- verificação de regras operacionais
-- sugestões automáticas de trocas
+### Teams and rosters
 
----
+- Controllers belong to a base operational team (A–E). Each team has a default monthly roster.
+- Swap results in a controller working a shift originally assigned to another team; **team membership does not change**.
+- Rosters are organised by team (one PDF per team). Five teams ⇒ five PDFs per month.
+- The next month’s roster may be available from around day 10 of the current month ⇒ system may hold two months of schedules.
+- Every Friday the scheduling office may send updated rosters; these must be processable (re-import). When a swap was agreed on Friday but not yet in the new PDF, the system keeps the swapped assignment and marks it with an inconsistency warning so the user can confirm with the scheduling office.
 
-# Stack Tecnológica
+### Shift codes
 
-Backend framework:
-FastAPI
+- **Tradable:** M, T, N, Mt, MG (work), DC, DS (rest). Only these participate in swaps.
+- **Not tradable:** Holidays, leave, travel, etc. — no swap logic applies.
 
-ORM:
-SQLAlchemy
+### Operational rules
 
-Base de dados:
-SQLite (desenvolvimento)
+- **Forbidden next-day sequences:** T→N, Mt→N (user must be warned / confirm before approving).
+- **Max consecutive working days:** 9. DC/DS count as non-working; same rule applies when swapping rest days.
+- More restrictions may be added later (e.g. other conflicting shift types).
 
-Autenticação:
-JWT (JSON Web Tokens)
+### Swaps in practice
 
-Servidor:
-Uvicorn
+- **~90% same-day**; system must also support **3-way swaps** and **cross-day swaps**.
+- **Two situations:**  
+  1. **Direct proposal** – User has already agreed with a colleague; proposes in the app; colleague must confirm.  
+  2. **Open request** – User offers a shift (e.g. M on day 5) and states multiple options for what they want, e.g. day 7 (M or T), day 8 (T), day 11 (T, M or MG). System can then suggest matches or cycles.
+- **All swaps require confirmation from everyone involved** (no “record only” without confirmation).
+- **History:** Keep a swap history; may be cleared or archived each month.
 
----
+### Import and PDFs
 
-# Estrutura do Projeto
+- PDF folder(s) are configurable; user places current-month and next-month PDFs there.
+- File names may be inconsistent; team and month might need to be read from PDF content. After import, report how many teams were processed; if not 5, warn.
+- **Controller identity:** Employee number in the PDF uniquely identifies the controller. Same number in two team PDFs in the same month (e.g. team change mid-month) ⇒ same user, shifts in different team schedules.
 
----
+## Tech stack
 
-# Modelos de Dados
+- FastAPI, SQLAlchemy, SQLite (dev), JWT auth, Uvicorn.
 
-Team  
-User  
-MonthlySchedule  
-Shift  
-SwapRequest  
-SwapPreference  
-ShiftType  
+## Current status
 
----
+- **Done:** Auth, teams, users, monthly schedules, shifts, swap request create/accept (same-day direct), preferences (partially: schema exists, persistence on create to be fixed), T→N/Mt→N and 9-day checks on accept, cycle proposal/confirm (with duplicate route bug to fix), 3-way same-day cycle detection.
+- **To do / improve:** Persist swap preferences on create; remove duplicate routes in swaps router; validate cycles before execute (simulate → validate → execute); extend “wanted” to multiple days and types; extend cycle detection to cross-day and N-way; import: configurable folders, team count warning, Friday reconciliation with inconsistency flag; swap history and optional monthly cleanup; README/ARCHITECTURE already updated.
 
-# Fluxo de Swaps
+## Documentation updates
 
-1. Utilizador cria pedido de troca para um dos seus turnos.
-
-2. Outro utilizador aceita a troca.
-
-3. O sistema valida:
-- swap está OPEN
-- utilizador não aceita o próprio swap
-- existe turno no mesmo dia
-- preferências de turno
-- regras operacionais
-
-4. A troca é executada de forma segura:
-
-com transação SQLAlchemy.
-
----
-
-# Regras Operacionais
-
-Regras atuais:
-
-Implementadas em:
-
----
-
-# Endpoints Principais
-
-Autenticação:
-
-Swaps:
-
-Turnos:
-
----
-
-# Regras Importantes do Sistema
-
-- Um utilizador não pode ter dois turnos no mesmo dia
-- Não é possível criar swaps para turnos passados
-- Não é possível aceitar o próprio swap
-- Apenas um swap OPEN por turno
-- A troca de turnos é feita dentro de uma transação segura
-- Sequencias inválidas T e depois N; Mt e depois N (acisar utilizador antes de aprovar)
-- máximo dias consecutivos a trabalhar:9 (avisar utilizador antres de aprovar)
--Controllers belong to a base operational team (A–E).  Each team has a default     monthly roster. Controllers normally follow the schedule of their assigned team.
-However, shift swaps may result in controllers working shifts that were originally assigned to other teams.
-The controller’s team membership does not change as a result of a swap.
-
-
----
-
-# Estado Atual do Projeto
-
-Backend funcional com:
-
-- autenticação
-- gestão de turnos
-- criação de swaps
-- aceitação segura de swaps
-- validação de regras operacionais
-- sugestões de trocas
-- deteção de ciclos de swap
-
-Sistema pronto para evolução futura.
----
-
-# Development Status
-
-Current state of the project:
-
-Implemented:
-
-- FastAPI backend
-- JWT authentication
-- User management
-- Team management
-- Monthly schedules
-- Shift management
-- Swap request creation
-- Secure swap acceptance with transaction
-- Operational rule validation (T→N, Mt→N)
-- Swap preferences
-- Swap suggestions
-- Detection of 3-user swap cycles
-
-Technical improvements implemented:
-
-- accepter_id stored in SwapRequest
-- SQLAlchemy relationships improved
-- prevention of duplicate swaps
-- prevention of swaps for past shifts
-- filtering own swaps from open list
-- transaction safety in swap acceptance
-
-Project infrastructure:
-
-- Git repository initialized
-- GitHub repository created
-- README.md created
-- .gitignore configured
-- PROJECT_CONTEXT.md created
+README, ARCHITECTURE, SWAP_ENGINE_RULES, and PROJECT_CONTEXT may be updated by the development process. The user is notified when these files are changed.
