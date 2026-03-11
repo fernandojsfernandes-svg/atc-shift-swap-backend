@@ -1,10 +1,23 @@
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# Virtual environments
 venv/
 .env
 .env.*
 
-test.db
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.cursor/
