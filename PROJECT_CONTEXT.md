@@ -101,6 +101,12 @@ Turnos:
 - Não é possível aceitar o próprio swap
 - Apenas um swap OPEN por turno
 - A troca de turnos é feita dentro de uma transação segura
+- Sequencias inválidas T e depois N; Mt e depois N (acisar utilizador antes de aprovar)
+- máximo dias consecutivos a trabalhar:9 (avisar utilizador antres de aprovar)
+-Controllers belong to a base operational team (A–E).  Each team has a default     monthly roster. Controllers normally follow the schedule of their assigned team.
+However, shift swaps may result in controllers working shifts that were originally assigned to other teams.
+The controller’s team membership does not change as a result of a swap.
+
 
 ---
 
