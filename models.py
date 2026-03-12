@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, UniqueConstraint, Boolean
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
@@ -57,6 +57,12 @@ class Shift(Base):
     data = Column(Date, nullable=False, index=True)
     codigo = Column(String, nullable=False, index=True)
 
+    # Cor/bucket extraído do PDF (ex.: red, pink, gray_light, gray_dark, ...)
+    color_bucket = Column(String, nullable=True)
+    # Flag para inconsistência entre trocas aceites e escala importada
+    inconsistency_flag = Column(Boolean, default=False)
+    inconsistency_message = Column(String, nullable=True)
+
     shift_type_id = Column(Integer, ForeignKey("shift_types.id"))
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -113,6 +119,20 @@ class SwapPreference(Base):
     shift_type = relationship("ShiftType")
 
 
+class SwapWantedOption(Base):
+    __tablename__ = "swap_wanted_options"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=False)
+    date = Column(Date, nullable=False, index=True)
+    shift_type_id = Column(Integer, ForeignKey("shift_types.id"), nullable=False)
+
+    # relationships (no back_populates needed yet; read-only helper table)
+    swap_request = relationship("SwapRequest")
+    shift_type = relationship("ShiftType")
+
+
 class CycleProposal(Base):
     __tablename__ = "cycle_proposals"
 
@@ -135,3 +155,17 @@ class CycleConfirmation(Base):
     cycle_id = Column(Integer, ForeignKey("cycle_proposals.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     confirmed = Column(Boolean, default=False)
+
+
+class SwapHistory(Base):
+    """Registo de uma troca aceite (para histórico e eventual limpeza mensal)."""
+    __tablename__ = "swap_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=True)
+    requester_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    accepter_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    shift_id_offered = Column(Integer, ForeignKey("shifts.id"), nullable=False)
+    shift_id_received = Column(Integer, ForeignKey("shifts.id"), nullable=False)
+    accepted_at = Column(DateTime, nullable=False)
+    cycle_id = Column(Integer, ForeignKey("cycle_proposals.id"), nullable=True)

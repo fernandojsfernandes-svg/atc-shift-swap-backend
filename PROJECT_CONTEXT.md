@@ -46,8 +46,33 @@ Backend for managing rosters and shift swaps between Air Traffic Controllers (AT
 
 ## Current status
 
-- **Done:** Auth, teams, users, monthly schedules, shifts, swap request create/accept (same-day direct), preferences (partially: schema exists, persistence on create to be fixed), T→N/Mt→N and 9-day checks on accept, cycle proposal/confirm (with duplicate route bug to fix), 3-way same-day cycle detection.
-- **To do / improve:** Persist swap preferences on create; remove duplicate routes in swaps router; validate cycles before execute (simulate → validate → execute); extend “wanted” to multiple days and types; extend cycle detection to cross-day and N-way; import: configurable folders, team count warning, Friday reconciliation with inconsistency flag; swap history and optional monthly cleanup; README/ARCHITECTURE already updated.
+- **Done:**
+  - Auth, teams, users, monthly schedules, shifts.
+  - Swap request create/accept (same-day direct) com:
+    - preferências (`acceptable_shift_types`) gravadas em `SwapPreference`,
+    - `wanted_options` em vários dias/tipos gravadas em `SwapWantedOption`,
+    - validação T→N/Mt→N e máximo 9 dias na aceitação e em ciclos.
+  - Ciclos:
+    - proposta/confirm (`CycleProposal`, `CycleSwap`, `CycleConfirmation`),
+    - deteção de ciclos 2..N, incluindo cross-day, com base em `wanted_options`,
+    - execução transacional com validação prévia (simulação).
+  - Import:
+    - pastas configuráveis por env (`PDF_FOLDER_ATUAL`/`SEGUINTE`),
+    - aviso se menos de 5 equipas processadas,
+    - parser de PDF com deteção de cor da célula (`color_bucket`) por turno.
+  - Histórico:
+    - `SwapHistory` gravado em swaps simples e em ciclos,
+    - endpoints `GET /swap-requests/history` e `DELETE /swap-requests/history?before=YYYY-MM-DD`.
+  - Re-import de sextas:
+    - após novo `POST /import/schedules`, marca em `Shift` os turnos incoerentes com o histórico de trocas (`inconsistency_flag`/`inconsistency_message`).
+  - API de leitura para frontend:
+    - `GET /schedules/{team_code}/{year}/{month}` (escala da equipa),
+    - `GET /users/{employee_number}/shifts/{year}/{month}` (escala pessoal).
+
+- **To do / improve:**
+  - Afinar a semântica das cores (significado de cada `color_bucket`) assim que a legenda estiver fechada.
+  - Eventuais filtros adicionais (por utilizador/equipa) nos históricos e endpoints.
+  - Mais testes automatizados específicos para import real de PDFs e reconciliação de sexta-feira.
 
 ## Documentation updates
 

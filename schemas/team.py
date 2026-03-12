@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
 
 class TeamBase(BaseModel):
     nome: str
@@ -11,5 +12,4 @@ class TeamCreate(TeamBase):
 class TeamRead(TeamBase):
     id: int
 
-    class Config:
-        from_attributes = True  # necessário para SQLAlchemy
+    model_config = ConfigDict(from_attributes=True)

@@ -1,13 +1,10 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from database import get_db
-from models import MonthlySchedule, Shift, User, ShiftType
+from models import MonthlySchedule, Team, Shift, User
 from schemas.schedule import ScheduleCreate, ScheduleRead
-
-from parsers.schedule_parser import parse_schedule_pdf
-from parsers.pdf_parser import parse_pdf
+from schemas.shift import ShiftRead
 
 router = APIRouter(
     prefix="/schedules",
@@ -35,50 +32,29 @@ def create_schedule(schedule: ScheduleCreate, db: Session = Depends(get_db)):
 def list_schedules(db: Session = Depends(get_db)):
     return db.query(MonthlySchedule).all()
 
-@router.post("/import-pdf")
-def import_pdf(db: Session = Depends(get_db)):
 
-    created = 0
-    skipped = 0
+@router.get("/{team_code}/{year}/{month}", response_model=list[ShiftRead])
+def team_month_schedule(
+    team_code: str,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Devolve a escala completa de uma equipa num determinado mês/ano.
+    Cada item é um turno (Shift) com informação do utilizador, cor e flags.
+    """
+    team = db.query(Team).filter(Team.nome == team_code).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
 
-    shifts = parse_pdf()
+    schedule = db.query(MonthlySchedule).filter(
+        MonthlySchedule.team_id == team.id,
+        MonthlySchedule.ano == year,
+        MonthlySchedule.mes == month,
+    ).first()
+    if not schedule:
+        return []
 
-    for s in shifts:
-
-        user = db.query(User).filter(
-            User.employee_number == s["employee"]
-        ).first()
-
-        if not user:
-            user = User(
-                nome=s["name"],
-                email=f"{s['employee']}@import.local",
-                employee_number=s["employee"],
-                password_hash="imported",
-                team_id=1
-            )
-
-            db.add(user)
-            db.flush()
-
-        shift_type = db.query(ShiftType).filter(
-            ShiftType.code == s["code"]
-        ).first()
-
-        shift = Shift(
-            user_id=user.id,
-            data=s["date"],
-            codigo=s["code"],
-            shift_type_id=shift_type.id if shift_type else None,
-            schedule_id=1
-        )
-
-        db.add(shift)
-        created += 1
-
-    db.commit()
-
-    return {
-        "created_shifts": created,
-        "skipped": skipped
-    }
+    shifts = db.query(Shift).filter(Shift.schedule_id == schedule.id).all()
+    return shifts

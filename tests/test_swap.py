@@ -59,6 +59,7 @@ def test_full_swap_cycle():
         "nome": "User1",
         "email": "u1@test.com",
         "password": "123456",
+        "employee_number": "u1test",
         "team_id": team["id"]
     }).json()
 
@@ -66,6 +67,7 @@ def test_full_swap_cycle():
         "nome": "User2",
         "email": "u2@test.com",
         "password": "123456",
+        "employee_number": "u2test",
         "team_id": team["id"]
     }).json()
 

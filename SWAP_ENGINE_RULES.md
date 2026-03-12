@@ -63,4 +63,5 @@ Three or more controllers form a cycle: A offers S1 and wants S2, B offers S2 an
 ## Confirmation and history
 
 - Every swap (direct or cycle) requires confirmation from all parties. No “record only” without the other side accepting.
-- Swap history is kept; can be cleared or archived each month (implementation detail in PROJECT_CONTEXT).
+- Swap history is kept (`SwapHistory`); can be listed via `GET /swap-requests/history` e limpo/arquivado mensalmente via `DELETE /swap-requests/history?before=YYYY-MM-DD`.
+- Quando novas escalas são re-importadas, o histórico é usado para marcar em `Shift` eventuais inconsistências (troca aceite ainda não refletida no PDF), para que o utilizador possa confirmar com o serviço de escalas.

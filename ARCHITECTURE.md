@@ -11,8 +11,8 @@ High-level structure of the ATC Shift Swap backend.
 | **Schemas**| `schemas/*.py`  | Pydantic request/response (e.g. SwapCreate, SwapRead). |
 | **Security** | `security.py` | JWT, password hashing, `get_current_user`. |
 | **Rules**  | `rules/shift_rules.py` | Operational rules: forbidden next-day pairs (T→N, Mt→N), max 9 consecutive working days. |
-| **Services** | `services/swap_engine.py` | Cycle detection (currently 3-way same-day; to be extended to cross-day and N-way). |
-| **Parsers** | `parsers/*.py`  | PDF parsing: extract controller id, date, shift code per team roster. |
+| **Services** | `services/swap_engine.py` | Cycle detection (2..N users, same-day and cross-day, using wanted options). |
+| **Parsers** | `parsers/*.py`  | PDF parsing: extract controller id, date, shift code and cell color per team roster. |
 | **Database** | `database.py`  | Engine, session, `get_db`. |
 
 ## Main flows
@@ -23,7 +23,7 @@ High-level structure of the ATC Shift Swap backend.
 - **Input:** Reads from configured PDF folders (current month and next month). Expects one PDF per team (e.g. A, B, C, D, E); file names may be inconsistent; team/month may need to be read from PDF content.
 - **Behaviour:** Creates/updates Team, User (by employee number), MonthlySchedule (team + month), Shift. Same employee number can appear in two teams in the same month (e.g. A then leave then D); all shifts attach to the same User.
 - **Output:** Should report how many teams were processed; if fewer than 5, warn so the user can check files or parser.
-- **Friday updates:** When re-importing updated PDFs, shifts that are part of an accepted swap but not yet reflected in the PDF are kept as-is and marked with an inconsistency warning (e.g. “Confirm with scheduling office”) so the user can reconcile.
+- **Friday updates:** When re-importing updated PDFs, shifts that are part of an accepted swap but not yet reflected in the PDF are kept as-is and marked on the corresponding `Shift` row with `inconsistency_flag` and `inconsistency_message` so the user can reconcile (e.g. “Confirm with scheduling office”).
 
 ### Direct swap
 

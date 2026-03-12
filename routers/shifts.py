@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Shift, User
+from models import Shift, User, ShiftType
 from schemas.shift import ShiftRead, ShiftCreate
 from security import get_current_user
 
@@ -31,11 +31,18 @@ def my_shifts(
 @router.post("/", response_model=ShiftRead)
 def create_shift(shift: ShiftCreate, db: Session = Depends(get_db)):
 
+    shift_type_id = None
+    if shift.codigo:
+        st = db.query(ShiftType).filter(ShiftType.code == shift.codigo.strip()).first()
+        if st:
+            shift_type_id = st.id
+
     new_shift = Shift(
         data=shift.data,
         codigo=shift.codigo,
         user_id=shift.user_id,
-        schedule_id=shift.schedule_id
+        schedule_id=shift.schedule_id,
+        shift_type_id=shift_type_id,
     )
 
     db.add(new_shift)

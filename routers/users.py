@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
-from models import User
+from models import User, Shift
 from schemas.user import UserCreate, UserRead
+from schemas.shift import ShiftRead
 
 from security import (
     hash_password,
@@ -79,3 +80,27 @@ def login(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+@router.get("/{employee_number}/shifts/{year}/{month}", response_model=list[ShiftRead])
+def user_month_shifts(
+    employee_number: str,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Devolve todos os turnos (Shift) de um utilizador num determinado mês/ano.
+    Inclui cor e flags de inconsistência para o frontend poder mostrar a bandeira vermelha.
+    """
+    user = db.query(User).filter(User.employee_number == employee_number).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    shifts = db.query(Shift).filter(
+        Shift.user_id == user.id,
+        Shift.data >= f"{year:04d}-{month:02d}-01",
+        Shift.data < f"{year:04d}-{month + 1:02d}-01" if month < 12 else f"{year + 1:04d}-01-01",
+    ).all()
+
+    return shifts
