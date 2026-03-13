@@ -1,8 +1,10 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Shift, User, ShiftType
+from models import Shift, User, ShiftType, Team
 from schemas.shift import ShiftRead, ShiftCreate
 from security import get_current_user
 
@@ -86,3 +88,30 @@ def my_tradable_shifts(
     ).order_by(Shift.data).all()
 
     return shifts
+
+
+@router.get("/on-duty")
+def who_is_on_duty(
+    date_q: date,
+    code: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Lista quem está de serviço num dado dia e turno (todas as equipas).
+    Ex.: GET /shifts/on-duty?date_q=2026-03-05&code=M
+    """
+    shifts = (
+        db.query(Shift, User, Team)
+        .join(User, Shift.user_id == User.id)
+        .outerjoin(Team, User.team_id == Team.id)
+        .filter(Shift.data == date_q, Shift.codigo == code.strip().upper())
+        .all()
+    )
+    return [
+        {
+            "employee_number": u.employee_number,
+            "nome": u.nome,
+            "team": t.nome if t else None,
+        }
+        for _, u, t in shifts
+    ]

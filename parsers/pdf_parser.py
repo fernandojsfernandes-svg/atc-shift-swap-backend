@@ -68,6 +68,10 @@ def _bucket_color(rgb):
     if in_range(r, 173) and in_range(g, 255) and in_range(b, 47):
         return "lime"
 
+    # Amarelo (trabalho suplementar / extraordinário – surge após o BHT vermelho)
+    if r >= 200 and g >= 200 and b <= 230:
+        return "yellow"
+
     # Cabeçalhos / blocos informativos (podemos ignorar na lógica de turnos)
     if in_range(r, 78) and in_range(g, 177) and in_range(b, 6):
         return "green_header"
@@ -130,8 +134,29 @@ def parse_pdf(pdf_path, year, month):
         extracted_table = table.extract()
         page_image = page.to_image().original
 
+        # A rotação base vem na primeira linha (row 0), na 3.ª “sub-linha” de cada célula,
+        # no formato "1\ndo\nDC" (dia / dia_semana / código base).
+        header_row = extracted_table[0] if extracted_table else None
+        base_codes: dict[int, str] = {}
+        if header_row:
+            for i in range(2, len(header_row)):
+                header_cell = header_row[i]
+                if not header_cell:
+                    continue
+                parts = str(header_cell).splitlines()
+                if not parts:
+                    continue
+                base_code = parts[-1].strip()
+                if base_code in VALID_SHIFT_CODES:
+                    # i-1 é o dia do mês (coluna 2 -> dia 1, etc.)
+                    base_codes[i] = base_code
+
         for row_idx, row in enumerate(extracted_table):
             if not row:
+                continue
+
+            # Saltar linha de cabeçalho (0) e eventuais linhas de função (1, etc.) sem employee/id
+            if row_idx == 0:
                 continue
 
             employee = row[0]
@@ -142,9 +167,16 @@ def parse_pdf(pdf_path, year, month):
 
             # percorrer dias do mês (colunas a partir do índice 2)
             for i in range(2, len(row)):
-                code = row[i]
-                if not code:
-                    continue
+                cell_value = row[i]
+                # Se célula vazia → usar rotação base (se existir para esse dia)
+                if not cell_value:
+                    base_code = base_codes.get(i)
+                    if not base_code:
+                        continue
+                    code = base_code
+                else:
+                    code = cell_value
+
                 if code not in VALID_SHIFT_CODES:
                     continue
 

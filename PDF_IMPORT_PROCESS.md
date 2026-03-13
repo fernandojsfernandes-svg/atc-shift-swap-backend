@@ -35,6 +35,7 @@ From each PDF the parser identifies:
 • Controller identifier
 • Date
 • Assigned shift type
+• Cell background color (stored as `color_bucket`: red/BHT, yellow/trabalho suplementar, pink/extra, gray_light, gray_dark, lime/férias)
 
 Example extracted record:
 

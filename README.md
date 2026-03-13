@@ -7,9 +7,10 @@ Backend for managing monthly rosters and shift swaps between Air Traffic Control
 - **Authentication** – JWT login; users are ATCOs identified by employee number.
 - **Rosters** – Import monthly schedules from team PDFs (one PDF per team); support for current month and next month (next month often available from around day 10).
 - **Shift swaps** – Create swap requests (offer a shift, optionally specify what you want: same day, or multiple options e.g. “day 7 M or T; day 8 T; day 11 T, M or MG”). Direct swap (two people, same or different days) and multi-person cycles (e.g. A→B→C→A) with confirmation from everyone involved.
-- **Rules** – No T→N or Mt→N next-day sequence; max 9 consecutive working days; DC/DS (rest days) are tradable under the same rules. Only M, T, N, Mt, MG, DC, DS participate in swaps; holidays, leave, travel, etc. do not.
+- **Rules** – Only T and Mt cannot have N the next day; max 9 consecutive working days; DC/DS (rest days) are tradable under the same rules. Only M, T, N, Mt, MG, DC, DS participate in swaps; holidays, leave, travel, etc. do not.
 - **History** – Swap history is kept; list with GET `/swap-requests/history`, clear/archive with DELETE `/swap-requests/history?before=YYYY-MM-DD`.
- - **Colors & inconsistencies** – PDF import reads cell colors per shift and stores a `color_bucket` (e.g. red, pink, gray_light, gray_dark). On Friday re-imports, shifts whose accepted swaps are not yet reflected in the new PDFs are marked with `inconsistency_flag` and an `inconsistency_message` so the user can see a warning flag in the UI.
+- **Notifications** – When a same-day swap request is created, users who can satisfy it (and respect rules: only T and Mt cannot have N the next day; max 9 consecutive working days) receive an in-app notification. Users can disable notifications via PATCH `/users/me` (`notifications_enabled: false`). List: GET `/notifications/`, mark read: PATCH `/notifications/{id}/read`.
+- **Colors & inconsistencies** – PDF import reads cell colors per shift and stores a `color_bucket` (e.g. red, yellow, pink, gray_light, gray_dark, lime). Red = BHT; yellow = trabalho suplementar/extraordinário; pink = extra/troca; lime = férias/ausência. On Friday re-imports, shifts whose accepted swaps are not yet reflected in the new PDFs are marked with `inconsistency_flag` and an `inconsistency_message` so the user can see a warning flag in the UI.
 
 ## Tech stack
 
@@ -28,6 +29,16 @@ uvicorn main:app --reload
 
 API docs: `http://127.0.0.1:8000/docs`
 
+### Ver no telemóvel (mesma rede Wi‑Fi)
+
+Para aceder ao frontend no telemóvel, o backend tem de aceitar ligações da rede local:
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0
+```
+
+No frontend, arranca com `npm run dev:host` (em vez de `npm run dev`). Descobre o IP do PC na rede (em Windows: `ipconfig`, em Mac/Linux: `ip addr` ou `ifconfig`) e no browser do telemóvel abre `http://<IP_DO_PC>:5173` (ex.: `http://192.168.1.5:5173`).
+
 ## Tests
 
 Automated tests live in `tests/` and use an in-memory database (no real DB needed):
@@ -35,6 +46,10 @@ Automated tests live in `tests/` and use an in-memory database (no real DB neede
 ```bash
 pytest tests/ -v
 ```
+
+## Development
+
+- **sample_pdfs/** – Folder for reference PDFs (e.g. to tune yellow/trabalho suplementar detection). Ignored by git (see `.gitignore`).
 
 ## Documentation
 

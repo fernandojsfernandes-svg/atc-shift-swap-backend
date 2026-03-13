@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
 from models import User, Shift
-from schemas.user import UserCreate, UserRead
+from schemas.user import UserCreate, UserRead, UserPreferencesUpdate
 from schemas.shift import ShiftRead
 
 from security import (
@@ -80,6 +80,28 @@ def login(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+@router.get("/me", response_model=UserRead)
+def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+):
+    """Perfil do utilizador autenticado (inclui preferência de notificações)."""
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_current_user_preferences(
+    prefs: UserPreferencesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Atualizar preferências (ex.: desativar notificações de pedidos de troca)."""
+    if prefs.notifications_enabled is not None:
+        current_user.notifications_enabled = prefs.notifications_enabled
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @router.get("/{employee_number}/shifts/{year}/{month}", response_model=list[ShiftRead])

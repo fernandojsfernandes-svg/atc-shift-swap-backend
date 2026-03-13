@@ -10,13 +10,14 @@ from datetime import datetime, timedelta
 # -----------------------------
 # Password hashing
 # -----------------------------
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Para desenvolvimento usamos pbkdf2_sha256 (sem limite de 72 bytes).
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def hash_password(password: str):
-    return pwd_context.hash(password)
+    return pwd_context.hash(password or "")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password or "", hashed_password)
 
 # -----------------------------
 # JWT settings

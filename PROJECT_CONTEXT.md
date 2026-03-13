@@ -21,7 +21,7 @@ Backend for managing rosters and shift swaps between Air Traffic Controllers (AT
 
 ### Operational rules
 
-- **Forbidden next-day sequences:** T→N, Mt→N (user must be warned / confirm before approving).
+- **Forbidden next-day sequences:** Only T and Mt cannot have N the next day (user must be warned / confirm before approving).
 - **Max consecutive working days:** 9. DC/DS count as non-working; same rule applies when swapping rest days.
 - More restrictions may be added later (e.g. other conflicting shift types).
 
@@ -68,9 +68,12 @@ Backend for managing rosters and shift swaps between Air Traffic Controllers (AT
   - API de leitura para frontend:
     - `GET /schedules/{team_code}/{year}/{month}` (escala da equipa),
     - `GET /users/{employee_number}/shifts/{year}/{month}` (escala pessoal).
+  - Notificações:
+    - Ao criar pedido de troca (mesmo dia), utilizadores que podem satisfazer e cumprem regras recebem notificação in-app; preferência `notifications_enabled` em User; GET/PATCH `/notifications/`, PATCH `/users/me`.
+  - Cores do PDF:
+    - `color_bucket`: red (BHT), yellow (trabalho suplementar/extraordinário), pink (extra/troca), gray_light/gray_dark, lime (férias/ausência).
 
 - **To do / improve:**
-  - Afinar a semântica das cores (significado de cada `color_bucket`) assim que a legenda estiver fechada.
   - Eventuais filtros adicionais (por utilizador/equipa) nos históricos e endpoints.
   - Mais testes automatizados específicos para import real de PDFs e reconciliação de sexta-feira.
 

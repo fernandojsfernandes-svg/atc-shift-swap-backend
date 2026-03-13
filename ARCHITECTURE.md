@@ -6,12 +6,13 @@ High-level structure of the ATC Shift Swap backend.
 
 | Layer      | Location        | Role |
 |-----------|-----------------|------|
-| **API**   | `routers/*.py`  | HTTP endpoints: teams, users, schedules, shifts, swap-requests, import, dev. |
-| **Models**| `models.py`     | SQLAlchemy: Team, User, MonthlySchedule, Shift, ShiftType, SwapRequest, SwapPreference, CycleProposal, CycleSwap, CycleConfirmation. |
+| **API**   | `routers/*.py`  | HTTP endpoints: teams, users, schedules, shifts, swap-requests, notifications, import, dev. |
+| **Models**| `models.py`     | SQLAlchemy: Team, User (incl. notifications_enabled), MonthlySchedule, Shift, ShiftType, SwapRequest, SwapPreference, SwapNotification, CycleProposal, CycleSwap, CycleConfirmation. |
 | **Schemas**| `schemas/*.py`  | Pydantic request/response (e.g. SwapCreate, SwapRead). |
 | **Security** | `security.py` | JWT, password hashing, `get_current_user`. |
-| **Rules**  | `rules/shift_rules.py` | Operational rules: forbidden next-day pairs (T→N, Mt→N), max 9 consecutive working days. |
+| **Rules**  | `rules/shift_rules.py` | Operational rules: only T and Mt cannot have N the next day; max 9 consecutive working days. |
 | **Services** | `services/swap_engine.py` | Cycle detection (2..N users, same-day and cross-day, using wanted options). |
+| **Services** | `services/notify_swap.py` | When a same-day swap is created, notifies users who can satisfy it (and pass rules); respects User.notifications_enabled. |
 | **Parsers** | `parsers/*.py`  | PDF parsing: extract controller id, date, shift code and cell color per team roster. |
 | **Database** | `database.py`  | Engine, session, `get_db`. |
 

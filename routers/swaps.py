@@ -12,10 +12,12 @@ from models import (
     SwapPreference,
     SwapWantedOption,
     SwapHistory,
+    SwapNotification,
     CycleProposal,
     CycleSwap,
-    CycleConfirmation
+    CycleConfirmation,
 )
+from services.notify_swap import notify_matching_users_same_day
 from schemas.swap import SwapCreate, SwapRead, SwapHistoryRead
 from security import get_current_user
 from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
@@ -30,7 +32,7 @@ router = APIRouter(
 def _validate_cycle_execution(db: Session, shifts: list, users: list) -> None:
     """
     Validates that executing the cycle would not break operational rules.
-    Raises HTTPException if invalid (same-day double shift, T→N/Mt→N, or >9 consecutive working days).
+    Raises HTTPException if invalid (same-day double shift; T or Mt followed by N next day; or >9 consecutive working days).
     """
     n = len(shifts)
     if n != len(users):
@@ -59,7 +61,7 @@ def _validate_cycle_execution(db: Session, shifts: list, users: list) -> None:
                     detail=f"Cycle would give user {uid} more than one shift on the same day"
                 )
 
-        # 2) No T→N or Mt→N on consecutive days
+        # 2) Only T and Mt cannot have N the next day
         resulting_sorted = sorted(resulting, key=lambda s: s.data)
         for i in range(len(resulting_sorted) - 1):
             today_s = resulting_sorted[i]
@@ -69,7 +71,7 @@ def _validate_cycle_execution(db: Session, shifts: list, users: list) -> None:
             if is_next_day_incompatible(today_s.codigo, next_s.codigo):
                 raise HTTPException(
                     status_code=400,
-                    detail="Cycle would create forbidden shift sequence (T→N or Mt→N)"
+                    detail="Cycle would create forbidden sequence: only T and Mt cannot have N the next day"
                 )
 
         # 3) Max 9 consecutive working days
@@ -166,6 +168,13 @@ def create_swap_request(
     db.commit()
     db.refresh(new_swap)
 
+    try:
+        notify_matching_users_same_day(db, new_swap)
+        db.commit()
+    except Exception:
+        db.rollback()
+        # não falhar o pedido por causa das notificações
+
     return new_swap
 
 
@@ -232,7 +241,7 @@ def accept_swap(
             if not confirm_incompatibility:
                 raise HTTPException(
                     status_code=409,
-                    detail="Possible incompatibility with next day shift (T→N or Mt→N). Use confirm_incompatibility=true if you want to proceed."
+                    detail="Only T and Mt cannot have N the next day. Use confirm_incompatibility=true if you want to proceed."
                 )
 
     # Verificar preferências de turno

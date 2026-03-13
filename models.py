@@ -33,6 +33,9 @@ class User(Base):
 
     team_id = Column(Integer, ForeignKey("teams.id"))
 
+    # Notificações de pedidos de troca que o utilizador pode satisfazer (pode desativar)
+    notifications_enabled = Column(Boolean, default=True)
+
     team = relationship("Team", back_populates="users")
 
     shifts = relationship("Shift", back_populates="user")
@@ -169,3 +172,17 @@ class SwapHistory(Base):
     shift_id_received = Column(Integer, ForeignKey("shifts.id"), nullable=False)
     accepted_at = Column(DateTime, nullable=False)
     cycle_id = Column(Integer, ForeignKey("cycle_proposals.id"), nullable=True)
+
+
+class SwapNotification(Base):
+    """Notificação a um utilizador: existe um pedido de troca que pode satisfazer (mesmo dia)."""
+    __tablename__ = "swap_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", backref="swap_notifications")
+    swap_request = relationship("SwapRequest", backref="notifications")

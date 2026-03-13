@@ -35,7 +35,7 @@ Three or more controllers form a cycle: A offers S1 and wants S2, B offers S2 an
 
 1. **Ownership** – Controller only offers shifts they currently own.
 2. **One shift per day** – No controller may end up with two shifts on the same day.
-3. **Forbidden sequences** – No T→N or Mt→N next-day (warn user; can allow with explicit confirm). Other pairs may be added later.
+3. **Forbidden sequences** – Only T and Mt cannot have N the next day (warn user; can allow with explicit confirm).
 4. **Max 9 consecutive working days** – Working = M, T, N, MG, Mt; DC/DS are rest. Reject if swap would exceed 9.
 5. **Single use** – A shift participates in at most one swap (or one cycle) in a given execution.
 6. **Atomic execution** – For a cycle, either all swaps in the cycle are applied or none (no partial execution).
