@@ -1,0 +1,724 @@
+/* Escala pessoal – layout e calendário */
+
+.app-scale {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  text-align: left;
+}
+
+.scale-header h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.25rem;
+}
+
+.scale-subtitle {
+  color: var(--text);
+  font-size: 0.95rem;
+  margin: 0 0 1.25rem;
+}
+
+.scale-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-group span {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.control-group input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 120px;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.month-nav button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-h);
+}
+
+.month-nav button:hover {
+  background: var(--code-bg);
+}
+
+.month-label {
+  min-width: 140px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.btn-load {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Botões em branco com letras pretas: Carregar escala, Criar pedido (mesmo/outros dias), Ver quem está */
+.btn-load--light {
+  background: #fff !important;
+  color: #111 !important;
+}
+
+.btn-load--light:hover:not(:disabled) {
+  background: #eee !important;
+  filter: none;
+}
+
+.btn-load:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-load:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.scale-error {
+  padding: 0.75rem 1rem;
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+.scale-success-msg {
+  padding: 0.75rem 1rem;
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.scale-empty {
+  color: var(--text);
+  margin: 1rem 0;
+}
+
+/* Calendário */
+
+.calendar-wrap {
+  margin-top: 1rem;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.weekday {
+  text-align: center;
+  padding: 0.25rem 0;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.calendar-cell {
+  min-height: 56px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+}
+
+.calendar-cell--empty {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
+}
+
+.calendar-cell--clickable {
+  cursor: pointer;
+}
+
+.calendar-cell--clickable:hover {
+  filter: brightness(0.95);
+}
+
+.calendar-cell--selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.calendar-cell--inconsistent {
+  outline: 2px solid #dc2626;
+  outline-offset: -1px;
+}
+
+/* Dias passados: não clicáveis, cruz fina por cima */
+.calendar-cell--past {
+  cursor: default;
+}
+
+.calendar-cell--past::before,
+.calendar-cell--past::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 140%;
+  background: var(--border);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.calendar-cell--past::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.calendar-cell--past::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Célula com fundo claro (rotação normal) usa texto escuro */
+.cell-day {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.cell-code {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+}
+
+.cell-code--empty {
+  font-weight: normal;
+  color: var(--text);
+}
+
+/* Células com fundo claro (branco, vermelho, rosa, etc.): texto escuro para contraste */
+.calendar-cell--light-bg .cell-day,
+.calendar-cell--light-bg .cell-code {
+  color: #1a1a1a !important;
+}
+
+.calendar-cell--light-bg .cell-code--empty {
+  color: #555 !important;
+}
+
+/* Células com fundo escuro (cinzentos): texto branco para contraste */
+.calendar-cell--dark-bg .cell-day,
+.calendar-cell--dark-bg .cell-code {
+  color: #fff !important;
+}
+
+.calendar-cell--dark-bg .cell-code--empty {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Célula dividida: duas bandas de largura total, cada uma com 50% da altura da célula */
+.calendar-cell--split {
+  padding: 0;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.calendar-cell--split .cell-half {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+}
+
+/* Metade superior = cinzento claro; metade inferior = cinzento escuro (cor do turno) */
+.calendar-cell--split .cell-half--top {
+  background: var(--shift-gray-light);
+  color: #1a1a1a;
+  border-radius: 5px 5px 0 0;
+}
+
+.calendar-cell--split .cell-half--top .cell-day {
+  color: #1a1a1a !important;
+}
+
+.calendar-cell--split .cell-half--bottom {
+  position: relative;
+  border-radius: 0 0 5px 5px;
+}
+
+.calendar-cell--split .cell-half--bottom.cell-half--dark .cell-code {
+  color: #fff !important;
+}
+
+.calendar-cell--split .cell-half--bottom.cell-half--light .cell-code {
+  color: #1a1a1a !important;
+}
+
+.calendar-cell--split .cell-half--bottom .cell-flag {
+  top: 2px;
+  right: 4px;
+}
+
+.cell-flag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+  color: #dc2626;
+}
+
+.calendar-legend {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.calendar-legend em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+.legend-flag {
+  color: #dc2626;
+}
+
+/* Notificações (só com sessão iniciada) */
+
+.notifications-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.notifications-section h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.notifications-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.notifications-toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.notifications-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notifications-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+}
+
+.notifications-item--read {
+  opacity: 0.85;
+}
+
+.notifications-item-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+/* Quem está de serviço */
+
+.on-duty-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.on-duty-section h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.on-duty-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.on-duty-controls .control-group input,
+.on-duty-controls .control-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 60px;
+}
+
+.on-duty-controls select {
+  min-width: 80px;
+}
+
+.on-duty-context {
+  font-size: 0.9rem;
+  color: var(--text);
+  align-self: center;
+}
+
+.on-duty-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 420px;
+}
+
+.on-duty-list li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+}
+
+.on-duty-list li:last-child {
+  border-bottom: none;
+}
+
+.on-duty-list span {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+/* Painel de troca (turno clicado) */
+
+.swap-panel {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+}
+
+.swap-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.swap-panel-header h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.btn-close-panel {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.btn-close-panel:hover {
+  background: var(--border);
+}
+
+.swap-panel-intro {
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.swap-option-card {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.swap-option-card h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  color: var(--text-h);
+}
+
+.swap-option-card p {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.swap-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0;
+}
+
+.swap-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-h);
+}
+
+.swap-hint {
+  font-size: 0.8rem !important;
+  color: var(--text) !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.swap-dc-ds-note {
+  padding: 0.5rem 0.75rem;
+  background: var(--accent-bg);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  font-size: 0.9rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.wanted-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.wanted-date {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  min-width: 140px;
+}
+
+.btn-remove-row {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.btn-remove-row:hover {
+  background: var(--code-bg);
+}
+
+.btn-secondary {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-h);
+}
+
+.btn-secondary:hover {
+  background: var(--code-bg);
+}
+
+.swap-success {
+  color: var(--accent);
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+/* Telemóveis e ecrãs pequenos */
+@media (max-width: 640px) {
+  .app-scale {
+    padding: 1rem;
+  }
+
+  .scale-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .scale-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .scale-controls {
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .control-group input {
+    min-width: 0;
+    width: 100%;
+    max-width: 160px;
+    font-size: 16px; /* evita zoom no iOS ao focar */
+  }
+
+  .month-nav button {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .month-label {
+    min-width: 120px;
+    font-size: 0.95rem;
+  }
+
+  .btn-load,
+  .btn-load--light {
+    min-height: 44px;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+  }
+
+  .calendar-wrap {
+    margin-top: 0.75rem;
+  }
+
+  .calendar-weekdays {
+    gap: 1px;
+    font-size: 0.65rem;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+  }
+
+  .calendar-cell {
+    min-height: 44px;
+    padding: 4px 2px;
+    border-radius: 4px;
+  }
+
+  .cell-day {
+    font-size: 0.65rem;
+  }
+
+  .cell-code {
+    font-size: 0.85rem;
+  }
+
+  .calendar-legend {
+    font-size: 0.75rem;
+    gap: 0.5rem 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .on-duty-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+  }
+
+  .on-duty-controls {
+    gap: 0.75rem;
+  }
+
+  .on-duty-controls .control-group input,
+  .on-duty-controls .control-group select {
+    font-size: 16px;
+  }
+
+  .on-duty-list {
+    max-width: 100%;
+  }
+
+  .swap-panel {
+    padding: 1rem;
+    margin-top: 1rem;
+  }
+
+  .swap-panel-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .btn-close-panel {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .swap-option-card {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .wanted-date {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+}
