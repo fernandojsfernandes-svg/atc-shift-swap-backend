@@ -1,0 +1,11 @@
+# Backend PARSER_ESCALAS – deploy (Render, Railway, etc.)
+fastapi>=0.135.0
+uvicorn[standard]>=0.41.0
+sqlalchemy>=2.0.0
+python-multipart>=0.0.22
+python-jose[cryptography]>=3.5.0
+passlib[bcrypt]>=1.7.4
+pdfplumber>=0.11.0
+pillow>=12.0.0
+# PostgreSQL (para deploy online; em local usa SQLite)
+psycopg2-binary>=2.9.0
