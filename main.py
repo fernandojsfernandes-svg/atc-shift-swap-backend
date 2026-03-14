@@ -1,6 +1,10 @@
 import os
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from database import engine, Base, SessionLocal
 from models import ShiftType
 
@@ -35,9 +39,51 @@ app.add_middleware(
 
 
 @app.get("/")
+@app.head("/")
 def root():
-    """Resposta na raiz para não dar 404 ao abrir o URL da API no browser."""
+    """Resposta na raiz para não dar 404 ao abrir o URL da API no browser. HEAD para health check do Render."""
     return {"message": "ATC Shift Swap API", "docs": "/docs"}
+
+
+def _cors_headers_for_request(request: Request) -> dict:
+    """Cabeçalhos CORS para anexar a respostas de erro (evitar 'CORS missing' no browser)."""
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin and (origin in _origins or origin.rstrip("/") in _origins):
+        headers["Access-Control-Allow-Origin"] = origin
+    headers["Access-Control-Allow-Credentials"] = "true"
+    return headers
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler_with_cors(request: Request, exc: StarletteHTTPException):
+    """Garante que 4xx/5xx do FastAPI tenham CORS."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=_cors_headers_for_request(request),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler_with_cors(request: Request, exc: RequestValidationError):
+    """Garante que 422 de validação tenham CORS."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+        headers=_cors_headers_for_request(request),
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Garante que respostas 500 tenham CORS para o frontend poder ler a mensagem."""
+    logging.exception("Unhandled exception: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers=_cors_headers_for_request(request),
+    )
 
 
 def create_shift_types():
@@ -64,21 +110,21 @@ Base.metadata.create_all(bind=engine)
 # Migrações opcionais só para SQLite (PostgreSQL usa create_all com modelos atualizados)
 from database import DATABASE_URL as _db_url
 if "sqlite" in _db_url:
-    try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            conn.execute(text(
-                "ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 1"
-            ))
-            conn.commit()
-    except Exception:
-        pass
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE shifts ADD COLUMN origin_status VARCHAR"))
-            conn.commit()
-    except Exception:
-        pass
+    from sqlalchemy import text
+    _migrations = [
+        "ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 1",
+        "ALTER TABLE shifts ADD COLUMN origin_status VARCHAR",
+        "ALTER TABLE shifts ADD COLUMN color_bucket VARCHAR",
+        "ALTER TABLE shifts ADD COLUMN inconsistency_flag BOOLEAN DEFAULT 0",
+        "ALTER TABLE shifts ADD COLUMN inconsistency_message VARCHAR",
+    ]
+    for sql in _migrations:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(sql))
+                conn.commit()
+        except Exception:
+            pass
 
 create_shift_types()
 
