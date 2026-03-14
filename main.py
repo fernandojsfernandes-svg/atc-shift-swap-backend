@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
@@ -15,15 +16,24 @@ from routers import dev
 
 app = FastAPI()
 
-# Permitir chamadas do frontend (localhost:5173 ou telemóvel na mesma rede em PC_IP:5173)
+# CORS: desenvolvimento (localhost) + produção (FRONTEND_URL)
+_origins = ["http://localhost:5173", "http://localhost:5174"]
+if os.environ.get("FRONTEND_URL"):
+    _origins.append(os.environ.get("FRONTEND_URL").rstrip("/"))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_origin_regex=r"^http://(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):5173$",
+    allow_origins=_origins,
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def root():
+    """Resposta na raiz para não dar 404 ao abrir o URL da API no browser."""
+    return {"message": "ATC Shift Swap API", "docs": "/docs"}
 
 
 def create_shift_types():
@@ -47,16 +57,24 @@ def create_shift_types():
 
 Base.metadata.create_all(bind=engine)
 
-# Adicionar coluna notifications_enabled a users se não existir (SQLite)
-try:
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        conn.execute(text(
-            "ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 1"
-        ))
-        conn.commit()
-except Exception:
-    pass  # coluna já existe ou BD não é SQLite
+# Migrações opcionais só para SQLite (PostgreSQL usa create_all com modelos atualizados)
+from database import DATABASE_URL as _db_url
+if "sqlite" in _db_url:
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text(
+                "ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 1"
+            ))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE shifts ADD COLUMN origin_status VARCHAR"))
+            conn.commit()
+    except Exception:
+        pass
 
 create_shift_types()
 
