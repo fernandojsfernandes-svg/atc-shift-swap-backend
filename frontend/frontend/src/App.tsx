@@ -401,9 +401,6 @@ function App() {
         <p className="scale-subtitle">
           Número de funcionário, mês e ano. Use as setas para mudar o mês.
         </p>
-        <p className="scale-subtitle" style={{ fontSize: '0.75rem', opacity: 0.8 }} title="Para corrigir NetworkError: na Vercel definir VITE_API_URL com este URL e fazer Redeploy">
-          API: {API_BASE}
-        </p>
 
         <div className="scale-controls">
           <label className="control-group">
@@ -444,6 +441,9 @@ function App() {
             {importLoading ? 'A importar...' : 'Importar escalas'}
           </button>
         </div>
+        <p className="scale-subtitle" style={{ marginTop: '0.5rem', padding: '0.35rem 0.5rem', background: 'var(--code-bg)', borderRadius: 6, fontSize: '0.8rem' }}>
+          <strong>API:</strong> {API_BASE}
+        </p>
       </header>
 
       {importResult && (
