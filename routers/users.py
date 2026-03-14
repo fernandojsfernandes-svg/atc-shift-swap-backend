@@ -125,4 +125,5 @@ def user_month_shifts(
         Shift.data < f"{year:04d}-{month + 1:02d}-01" if month < 12 else f"{year + 1:04d}-01-01",
     ).all()
 
-    return shifts
+    # Serializar enquanto a sessão está aberta (evita e3q8 / "not bound to a Session")
+    return [ShiftRead.model_validate(s) for s in shifts]

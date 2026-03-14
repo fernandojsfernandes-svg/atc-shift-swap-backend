@@ -1,6 +1,0 @@
-This project is a FastAPI backend for an Air Traffic Controller shift swap system.
-
-Core logic is implemented in swap_engine.py.
-
-Do not modify database schema unless explicitly requested.
-Focus on implementing the swap detection algorithm.

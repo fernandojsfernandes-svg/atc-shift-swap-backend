@@ -112,6 +112,7 @@ def who_is_on_duty(
             "employee_number": u.employee_number,
             "nome": u.nome,
             "team": t.nome if t else None,
+            "origin_status": s.origin_status,
         }
-        for _, u, t in shifts
+        for s, u, t in shifts
     ]

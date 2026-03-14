@@ -20,18 +20,26 @@ from routers import dev
 
 app = FastAPI()
 
-# CORS: desenvolvimento (localhost) + produção (Vercel + FRONTEND_URL)
+# CORS: desenvolvimento (localhost) + produção (Vercel + Render docs + FRONTEND_URL)
 _origins = [
     "http://localhost:5173",
     "http://localhost:5174",
     "https://atc-shift-swap-backend-6njjhahe7.vercel.app",
+    "https://atc-shift-swap-backend.onrender.com",
 ]
 if os.environ.get("FRONTEND_URL"):
     _origins.append(os.environ.get("FRONTEND_URL").rstrip("/"))
+# Regex: localhost/127.0.0.1 com porta + qualquer subdomínio .onrender.com (para Swagger /docs)
+_origin_regex = (
+    r"^https?://("
+    r"(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?"
+    r"|([a-zA-Z0-9-]+\.)*onrender\.com"
+    r")(/.*)?$"
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$",
+    allow_origin_regex=_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

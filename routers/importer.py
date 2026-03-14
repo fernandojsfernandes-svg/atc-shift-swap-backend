@@ -108,7 +108,12 @@ def import_schedules(db: Session = Depends(get_db)):
                     continue
 
                 try:
-                    team_code, year_str, month_str = parts
+                    team_code_raw, year_str, month_str = parts
+                    # Aceitar "ROTA-A" (atual) e "A" (seguinte): normalizar para equipa A, B, C, D, E
+                    if team_code_raw.upper().startswith("ROTA-"):
+                        team_code = team_code_raw[5:].strip()  # "ROTA-A" -> "A"
+                    else:
+                        team_code = team_code_raw.strip()
                     year = int(year_str)
                     month = int(month_str)
                 except ValueError:
@@ -169,13 +174,37 @@ def import_schedules(db: Session = Depends(get_db)):
                         Shift.data == s["date"]
                     ).first()
 
+                    # Mapear color_bucket para um estatuto de origem estável, que acompanha o turno
+                    bucket = s.get("color_bucket")
+                    if bucket is None:
+                        origin_status = "rota"
+                    elif bucket == "gray_light":
+                        origin_status = "troca_nav"
+                    elif bucket == "gray_dark":
+                        origin_status = "troca_servico"
+                    elif bucket == "red":
+                        origin_status = "bht"
+                    elif bucket == "yellow":
+                        origin_status = "ts"
+                    elif bucket == "pink":
+                        origin_status = "mudanca_funcoes"
+                    elif bucket == "lime":
+                        origin_status = "outros"
+                    else:
+                        origin_status = None
+
                     if existing_shift:
+                        # Re-import: atualizar cor e origem (ex.: após ajustes no parser para Abril)
+                        existing_shift.codigo = s["code"]
+                        existing_shift.color_bucket = bucket
+                        existing_shift.origin_status = origin_status
                         continue
 
                     shift = Shift(
                         data=s["date"],
                         codigo=s["code"],
-                        color_bucket=s.get("color_bucket"),
+                        color_bucket=bucket,
+                        origin_status=origin_status,
                         shift_type_id=shift_type.id if shift_type else None,
                         user_id=user.id,
                         schedule_id=schedule.id
@@ -205,10 +234,20 @@ def import_schedules(db: Session = Depends(get_db)):
                 "Verifica os ficheiros nas pastas ou o formato dos nomes (ex.: A_2026_3.pdf)."
             )
 
+        # Lista de escalas (equipa + mês) para mostrar ex.: 5 equipas × 2 meses = 10 escalas
+        schedules_list = []
+        for (tid, y, m) in schedules_touched:
+            t = db.query(Team).filter(Team.id == tid).first()
+            if t:
+                schedules_list.append(f"{t.nome} {y}-{m:02d}")
+        schedules_list.sort()
+
         return {
             "message": "Schedules imported",
             "teams_processed": teams_list,
             "teams_count": len(teams_processed),
+            "schedules_count": len(schedules_touched),
+            "schedules_processed": schedules_list,
             "warning": warning,
         }
 

@@ -1,3 +1,4 @@
+import os
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -20,9 +21,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password or "", hashed_password)
 
 # -----------------------------
-# JWT settings
+# JWT settings (SECRET_KEY em produção: variável de ambiente)
 # -----------------------------
-SECRET_KEY = "super-secret-key-change-this"
+SECRET_KEY = os.environ.get("SECRET_KEY", "super-secret-key-change-this")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

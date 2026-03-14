@@ -60,8 +60,10 @@ class Shift(Base):
     data = Column(Date, nullable=False, index=True)
     codigo = Column(String, nullable=False, index=True)
 
-    # Cor/bucket extraído do PDF (ex.: red, pink, gray_light, gray_dark, ...)
+    # Cor/bucket extraído do PDF (ex.: red, yellow, pink, gray_light, gray_dark, lime, ...)
     color_bucket = Column(String, nullable=True)
+    # Estatuto de origem do turno (ex.: rota, troca_nav, troca_servico, bht, ts, outros)
+    origin_status = Column(String, nullable=True)
     # Flag para inconsistência entre trocas aceites e escala importada
     inconsistency_flag = Column(Boolean, default=False)
     inconsistency_message = Column(String, nullable=True)

@@ -39,6 +39,40 @@ uvicorn main:app --reload --host 0.0.0.0
 
 No frontend, arranca com `npm run dev:host` (em vez de `npm run dev`). Descobre o IP do PC na rede (em Windows: `ipconfig`, em Mac/Linux: `ip addr` ou `ifconfig`) e no browser do telemóvel abre `http://<IP_DO_PC>:5173` (ex.: `http://192.168.1.5:5173`).
 
+### Colocar a funcionar para outros testarem (mesma rede)
+
+Para que outras pessoas (no mesmo Wi‑Fi) possam abrir a app e testar no browser delas:
+
+1. **No PC onde corre o projeto** (backend + frontend):
+   - **Backend:** na pasta `backend_min`, com o venv ativado:
+     ```bash
+     uvicorn main:app --reload --host 0.0.0.0
+     ```
+     (O `--host 0.0.0.0` faz o servidor aceitar ligações de outros dispositivos na rede.)
+   - **Frontend:** na pasta `frontend/frontend`:
+     ```bash
+     npm run dev:host
+     ```
+     (O `--host` faz o Vite expor a app na rede, não só em localhost.)
+
+2. **Descobrir o IP do teu PC na rede:**
+   - **Windows:** abre uma consola e corre `ipconfig`; procura "Endereço IPv4" da interface Wi‑Fi (ex.: `192.168.1.5`).
+   - **Mac/Linux:** `ifconfig` ou `ip addr`; usa o IP da interface `en0`/`wlan0` (ex.: `192.168.1.5`).
+
+3. **O que partilhar com quem vai testar:**
+   - URL da app: `http://<TEU_IP>:5173` (ex.: `http://192.168.1.5:5173`).
+   - Quem abrir esse link no browser (PC ou telemóvel, na mesma rede) vê a aplicação; as chamadas à API vão automaticamente para `http://<TEU_IP>:8000`.
+
+4. **Requisitos para os testadores:**
+   - Estarem na **mesma rede Wi‑Fi** que o teu PC.
+   - Terem um browser (Chrome, Edge, Safari, etc.).
+   - Para **login/notificações**: precisam de um número de funcionário que exista na base de dados (criada ao importar os PDFs). Sem login conseguem ver escalas e "Quem está de serviço"; com login conseguem trocar turnos e ver notificações.
+
+5. **Pastas dos PDF (opcional):** Se quiseres que o botão "Importar escalas" funcione nesse PC, as pastas dos PDF têm de existir. Por defeito o backend usa:
+   - `C:/PARSER_ESCALAS/PDF_Escalas/atual`
+   - `C:/PARSER_ESCALAS/PDF_Escalas/seguinte`
+   Podes alterar com variáveis de ambiente `PDF_FOLDER_ATUAL` e `PDF_FOLDER_SEGUINTE` antes de correr o uvicorn.
+
 ## Tests
 
 Automated tests live in `tests/` and use an in-memory database (no real DB needed):
