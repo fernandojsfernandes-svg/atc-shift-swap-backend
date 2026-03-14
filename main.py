@@ -16,8 +16,12 @@ from routers import dev
 
 app = FastAPI()
 
-# CORS: desenvolvimento (localhost) + produção (FRONTEND_URL)
-_origins = ["http://localhost:5173", "http://localhost:5174"]
+# CORS: desenvolvimento (localhost) + produção (Vercel + FRONTEND_URL)
+_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://atc-shift-swap-backend-6njjhahe7.vercel.app",
+]
 if os.environ.get("FRONTEND_URL"):
     _origins.append(os.environ.get("FRONTEND_URL").rstrip("/"))
 app.add_middleware(
