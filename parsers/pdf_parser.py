@@ -42,8 +42,13 @@ def _bucket_color(rgb):
 
     r, g, b = rgb
 
-    # Muito próximo de branco: ignorar
+    # Muito próximo de branco: ignorar (rotação base)
     if r > 240 and g > 240 and b > 240:
+        return None
+
+    # Cinza claro / tom claro (ex.: Abril com tons ligeiramente diferentes): tratar como rotação
+    # Só consideramos "troca" (gray_light/gray_dark) para cinzas mais escuros (~169 e ~128)
+    if r > 175 and g > 175 and b > 175:
         return None
 
     def in_range(x, center, tol=6):
@@ -57,7 +62,7 @@ def _bucket_color(rgb):
     if in_range(r, 255) and in_range(g, 192) and in_range(b, 192):
         return "pink"
 
-    # Cinzas (dois tons diferentes)
+    # Cinzas (dois tons distintos; cinza claro ~169, escuro ~128)
     if in_range(r, 169) and in_range(g, 169) and in_range(b, 169):
         return "gray_light"
 
@@ -83,121 +88,112 @@ def _bucket_color(rgb):
     return "other"
 
 
+def _process_page_fallback(page, year, month, shifts):
+    """Fallback sem deteção de tabelas: extrai texto e preenche shifts (sem cores)."""
+    table = page.extract_table()
+    for row in table or []:
+        if not row:
+            continue
+        employee = row[0]
+        name = row[1]
+        if not employee or not name:
+            continue
+        for i in range(2, len(row)):
+            code = row[i]
+            if not code or code not in VALID_SHIFT_CODES:
+                continue
+            try:
+                day = i - 1
+                if day < 1 or day > 31:
+                    continue
+                d = date(year, month, day)
+            except ValueError:
+                continue
+            shifts.append({
+                "employee": employee,
+                "name": name,
+                "date": d,
+                "code": code,
+                "color_rgb": None,
+                "color_bucket": None,
+            })
+
+
+def _process_page_with_tables(page, year, month, shifts):
+    """Processa uma página com deteção de tabelas (inclui cores)."""
+    tables = page.find_tables()
+    if not tables:
+        _process_page_fallback(page, year, month, shifts)
+        return
+    table = tables[0]
+    extracted_table = table.extract()
+    page_image = page.to_image().original
+    header_row = extracted_table[0] if extracted_table else None
+    base_codes: dict[int, str] = {}
+    if header_row:
+        for i in range(2, len(header_row)):
+            header_cell = header_row[i]
+            if not header_cell:
+                continue
+            parts = str(header_cell).splitlines()
+            if not parts:
+                continue
+            base_code = parts[-1].strip()
+            if base_code in VALID_SHIFT_CODES:
+                base_codes[i] = base_code
+    for row_idx, row in enumerate(extracted_table):
+        if not row or row_idx == 0:
+            continue
+        employee = row[0]
+        name = row[1] if len(row) > 1 else None
+        if not employee or not name:
+            continue
+        for i in range(2, len(row)):
+            cell_value = row[i]
+            if not cell_value:
+                base_code = base_codes.get(i)
+                if not base_code:
+                    continue
+                code = base_code
+            else:
+                code = cell_value
+            if code not in VALID_SHIFT_CODES:
+                continue
+            try:
+                day = i - 1
+                if day < 1 or day > 31:
+                    continue
+                d = date(year, month, day)
+            except ValueError:
+                continue
+            try:
+                cell_box = table.rows[row_idx].cells[i]
+            except (IndexError, AttributeError):
+                cell_box = None
+            rgb = _get_cell_color(page_image, cell_box)
+            bucket = _bucket_color(rgb)
+            shifts.append({
+                "employee": employee,
+                "name": name,
+                "date": d,
+                "code": code,
+                "color_rgb": rgb,
+                "color_bucket": bucket,
+            })
+
+
 def parse_pdf(pdf_path, year, month):
     """
-    Lê o PDF da escala e devolve uma lista de dicts com:
+    Lê o PDF da escala (todas as páginas) e devolve uma lista de dicts com:
     - employee, name, date, code
     - color_rgb (tuple) e color_bucket (string simples ou None)
     """
-
     shifts = []
-
     with pdfplumber.open(pdf_path) as pdf:
-        page = pdf.pages[0]
-
-        # Tentar usar detecção de tabelas (para termos as caixas das células)
-        tables = page.find_tables()
-        if not tables:
-            # Fallback para a lógica antiga, sem cores
-            table = page.extract_table()
-            for row in table or []:
-                if not row:
-                    continue
-
-                employee = row[0]
-                name = row[1]
-
-                if not employee or not name:
-                    continue
-
-                for i in range(2, len(row)):
-                    code = row[i]
-                    if not code:
-                        continue
-                    if code not in VALID_SHIFT_CODES:
-                        continue
-
-                    shifts.append(
-                        {
-                            "employee": employee,
-                            "name": name,
-                            "date": date(year, month, i - 1),
-                            "code": code,
-                            "color_rgb": None,
-                            "color_bucket": None,
-                        }
-                    )
-
-            return shifts
-
-        table = tables[0]
-        extracted_table = table.extract()
-        page_image = page.to_image().original
-
-        # A rotação base vem na primeira linha (row 0), na 3.ª “sub-linha” de cada célula,
-        # no formato "1\ndo\nDC" (dia / dia_semana / código base).
-        header_row = extracted_table[0] if extracted_table else None
-        base_codes: dict[int, str] = {}
-        if header_row:
-            for i in range(2, len(header_row)):
-                header_cell = header_row[i]
-                if not header_cell:
-                    continue
-                parts = str(header_cell).splitlines()
-                if not parts:
-                    continue
-                base_code = parts[-1].strip()
-                if base_code in VALID_SHIFT_CODES:
-                    # i-1 é o dia do mês (coluna 2 -> dia 1, etc.)
-                    base_codes[i] = base_code
-
-        for row_idx, row in enumerate(extracted_table):
-            if not row:
-                continue
-
-            # Saltar linha de cabeçalho (0) e eventuais linhas de função (1, etc.) sem employee/id
-            if row_idx == 0:
-                continue
-
-            employee = row[0]
-            name = row[1] if len(row) > 1 else None
-
-            if not employee or not name:
-                continue
-
-            # percorrer dias do mês (colunas a partir do índice 2)
-            for i in range(2, len(row)):
-                cell_value = row[i]
-                # Se célula vazia → usar rotação base (se existir para esse dia)
-                if not cell_value:
-                    base_code = base_codes.get(i)
-                    if not base_code:
-                        continue
-                    code = base_code
-                else:
-                    code = cell_value
-
-                if code not in VALID_SHIFT_CODES:
-                    continue
-
-                # Obter a caixa da célula correspondente
-                try:
-                    cell_box = table.rows[row_idx].cells[i]
-                except (IndexError, AttributeError):
-                    cell_box = None
-
-                rgb = _get_cell_color(page_image, cell_box)
-                bucket = _bucket_color(rgb)
-
-                shifts.append(
-                    {
-                        "employee": employee,
-                        "name": name,
-                        "date": date(year, month, i - 1),
-                        "code": code,
-                        "color_rgb": rgb,
-                        "color_bucket": bucket,
-                    }
-                )
-
+        for page in pdf.pages:
+            tables = page.find_tables()
+            if tables:
+                _process_page_with_tables(page, year, month, shifts)
+            else:
+                _process_page_fallback(page, year, month, shifts)
     return shifts
