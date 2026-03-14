@@ -34,6 +34,56 @@ type NotificationDto = {
 
 const SHIFT_CODES = ['M', 'T', 'N', 'MG', 'Mt', 'DC', 'DS']
 
+/** Timeout longo para dar tempo ao Render (free) acordar (~1 min). */
+const API_FETCH_TIMEOUT_MS = 90000
+/** Mensagem quando falha a ligação (servidor pode estar a iniciar). */
+const NETWORK_ERROR_MESSAGE =
+  'Ligação falhou. O servidor pode estar a iniciar (até 1 min). Por favor tente novamente.'
+
+function isNetworkError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e)
+  return (
+    msg.includes('NetworkError') ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('Load failed') ||
+    msg.includes('Network request failed')
+  )
+}
+
+/**
+ * fetch com timeout e retry em caso de erro de rede (útil quando o backend está no Render free).
+ */
+async function apiFetch(
+  url: string,
+  options: RequestInit = {},
+  retries = 2,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), API_FETCH_TIMEOUT_MS)
+  let lastError: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      return res
+    } catch (e) {
+      lastError = e
+      clearTimeout(timeoutId)
+      const isAbort = e instanceof Error && e.name === 'AbortError'
+      const isNet = isNetworkError(e)
+      if ((isAbort || isNet) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 8000))
+        continue
+      }
+      throw e
+    }
+  }
+  throw lastError
+}
+
 // Em produção: definir VITE_API_URL no build (ex.: https://teu-backend.onrender.com)
 const API_BASE =
   typeof import.meta.env !== 'undefined' && import.meta.env.VITE_API_URL
@@ -115,7 +165,7 @@ function App() {
       const url = `${API_BASE}/users/${encodeURIComponent(
         employeeNumber,
       )}/shifts/${year}/${month}`
-      const res = await fetch(url)
+      const res = await apiFetch(url)
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `HTTP ${res.status}`)
@@ -123,7 +173,8 @@ function App() {
       const data: ShiftDto[] = await res.json()
       setShifts(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const msg = isNetworkError(e) ? NETWORK_ERROR_MESSAGE : (e instanceof Error ? e.message : String(e))
+      setError(msg)
       setShifts([])
     } finally {
       setLoading(false)
@@ -134,7 +185,7 @@ function App() {
     setImportLoading(true)
     setImportResult(null)
     try {
-      const res = await fetch(`${API_BASE}/import/schedules`, { method: 'POST' })
+      const res = await apiFetch(`${API_BASE}/import/schedules`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         const msg = Array.isArray(data.detail) ? data.detail.map((o: { msg?: string }) => o?.msg).filter(Boolean).join('; ') : (data.detail ?? data.message)
@@ -145,9 +196,10 @@ function App() {
         warning: data.warning ?? undefined,
       })
     } catch (e) {
+      const msg = isNetworkError(e) ? NETWORK_ERROR_MESSAGE : (e instanceof Error ? e.message : String(e))
       setImportResult({
         teams: [],
-        warning: e instanceof Error ? e.message : String(e),
+        warning: msg,
       })
     } finally {
       setImportLoading(false)
@@ -179,12 +231,13 @@ function App() {
     setOnDutySearched(true)
     try {
       const url = `${API_BASE}/shifts/on-duty?date_q=${dateStr}&code=${encodeURIComponent(onDutyCode)}`
-      const res = await fetch(url)
+      const res = await apiFetch(url)
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
       const data: OnDutyPerson[] = await res.json()
       setOnDutyList(data)
     } catch (e) {
-      setOnDutyError(e instanceof Error ? e.message : String(e))
+      const msg = isNetworkError(e) ? NETWORK_ERROR_MESSAGE : (e instanceof Error ? e.message : String(e))
+      setOnDutyError(msg)
       setOnDutyList([])
     } finally {
       setOnDutyLoading(false)
