@@ -41,12 +41,16 @@ const NETWORK_ERROR_MESSAGE =
   'Ligação falhou. O servidor pode estar a iniciar (até 1 min). Por favor tente novamente.'
 
 function isNetworkError(e: unknown): boolean {
+  if (e instanceof TypeError) return true
   const msg = e instanceof Error ? e.message : String(e)
+  const s = msg.toLowerCase()
   return (
-    msg.includes('NetworkError') ||
-    msg.includes('Failed to fetch') ||
-    msg.includes('Load failed') ||
-    msg.includes('Network request failed')
+    s.includes('networkerror') ||
+    s.includes('failed to fetch') ||
+    s.includes('load failed') ||
+    s.includes('network request failed') ||
+    s.includes('attempting to fetch') ||
+    s.includes('fetch resource')
   )
 }
 
