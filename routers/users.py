@@ -119,8 +119,11 @@ def user_month_shifts(
     emp = (employee_number or "").strip()
     if not emp:
         raise HTTPException(status_code=404, detail="User not found")
-    # Encontrar utilizador mesmo que na BD tenha espaços (ex.: equipa D importada com " 404535")
+    # 1) Procurar por número (com trim na BD para equipas importadas com espaços)
     user = db.query(User).filter(func.trim(User.employee_number) == emp).first()
+    # 2) Fallback: PDF com colunas trocadas (nome na 1.ª coluna, número na 2.ª) → employee_number=nome, nome=número
+    if not user:
+        user = db.query(User).filter(func.trim(User.nome) == emp).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
