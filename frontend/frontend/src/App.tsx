@@ -133,7 +133,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [onDutyDay, setOnDutyDay] = useState(5)
+  const [onDutyDayInput, setOnDutyDayInput] = useState('5')
   const [onDutyCode, setOnDutyCode] = useState('M')
   const [onDutyList, setOnDutyList] = useState<OnDutyPerson[]>([])
   const [onDutyLoading, setOnDutyLoading] = useState(false)
@@ -232,7 +232,9 @@ function App() {
   }
 
   async function loadOnDuty() {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(onDutyDay).padStart(2, '0')}`
+    const maxDay = getDaysInMonth(year, month)
+    const day = Math.min(maxDay, Math.max(1, parseInt(onDutyDayInput, 10) || 1))
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     setOnDutyLoading(true)
     setOnDutyError(null)
     setOnDutySearched(true)
@@ -780,12 +782,13 @@ function App() {
               type="number"
               min={1}
               max={maxDay}
-              value={onDutyDay}
-              onChange={(e) => setOnDutyDay(Number(e.target.value) || 1)}
+              value={onDutyDayInput}
+              onChange={(e) => setOnDutyDayInput(e.target.value)}
+              placeholder="Dia"
             />
           </label>
           <span className="on-duty-context">
-            (mês: {MONTH_NAMES[month - 1]} {year})
+            (mês: <span className="on-duty-month-year">{MONTH_NAMES[month - 1]} {year}</span>)
           </span>
           <label className="control-group">
             <span>Turno</span>

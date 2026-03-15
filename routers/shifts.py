@@ -100,11 +100,15 @@ def who_is_on_duty(
     Lista quem está de serviço num dado dia e turno (todas as equipas).
     Ex.: GET /shifts/on-duty?date_q=2026-03-05&code=M
     """
+    code_clean = (code or "").strip()
+    if not code_clean:
+        return []
+    # Comparação exata: Mt e MT são turnos diferentes
     shifts = (
         db.query(Shift, User, Team)
         .join(User, Shift.user_id == User.id)
         .outerjoin(Team, User.team_id == Team.id)
-        .filter(Shift.data == date_q, Shift.codigo == code.strip().upper())
+        .filter(Shift.data == date_q, Shift.codigo == code_clean)
         .all()
     )
     return [

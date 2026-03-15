@@ -430,6 +430,11 @@
   align-self: center;
 }
 
+/* Evitar que "Março 2026" parta no meio em ecrãs pequenos */
+.on-duty-context .on-duty-month-year {
+  white-space: nowrap;
+}
+
 .on-duty-list {
   list-style: none;
   padding: 0;
