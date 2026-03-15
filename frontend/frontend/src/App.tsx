@@ -787,9 +787,7 @@ function App() {
               placeholder="Dia"
             />
           </label>
-          <span className="on-duty-context">
-            (mês: <span className="on-duty-month-year">{MONTH_NAMES[month - 1]} {year}</span>)
-          </span>
+          <span className="on-duty-context">{MONTH_NAMES[month - 1]}</span>
           <label className="control-group">
             <span>Turno</span>
             <select
