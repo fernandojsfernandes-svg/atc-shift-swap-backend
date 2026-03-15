@@ -429,7 +429,7 @@
   color: var(--text);
   margin-left: 0.5rem;
   line-height: 1;
-  padding-top: 0.1875rem;
+  padding-top: 0.25rem;
 }
 
 @media (max-width: 480px) {
