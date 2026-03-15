@@ -96,6 +96,9 @@ const API_BASE =
       ? `${window.location.protocol}//${window.location.hostname}:8000`
       : 'http://127.0.0.1:8000'
 
+// Só mostrar "Importar escalas" em local: em produção (Render) não há PDFs no servidor
+const SHOW_IMPORT_BUTTON = API_BASE.includes('localhost') || API_BASE.includes('127.0.0.1')
+
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -488,15 +491,17 @@ function App() {
           >
             {loading ? 'A carregar...' : 'Carregar escala'}
           </button>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={runImport}
-            disabled={importLoading}
-            title="Lê os PDF das pastas 'atual' e 'seguinte' e importa para a base de dados. Depois use 'Carregar escala' para o mês desejado."
-          >
-            {importLoading ? 'A importar...' : 'Importar escalas'}
-          </button>
+          {SHOW_IMPORT_BUTTON && (
+            <button
+              type="button"
+              className="btn-load btn-load--light"
+              onClick={runImport}
+              disabled={importLoading}
+              title="Lê os PDF das pastas 'atual' e 'seguinte' e importa para a base de dados. Depois use 'Carregar escala' para o mês desejado."
+            >
+              {importLoading ? 'A importar...' : 'Importar escalas'}
+            </button>
+          )}
         </div>
         <p className="scale-subtitle" style={{ marginTop: '0.5rem', padding: '0.35rem 0.5rem', background: 'var(--code-bg)', borderRadius: 6, fontSize: '0.8rem' }}>
           <strong>API:</strong> {API_BASE}
