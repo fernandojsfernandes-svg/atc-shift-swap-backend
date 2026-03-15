@@ -624,7 +624,7 @@ function App() {
             <span><em>Vermelho</em> BHT</span>
             <span><em>Amarelo</em> TS</span>
             <span><em>Rosa</em> Mudança de Funções</span>
-            <span><em>Verde</em> Outros</span>
+            <span><em>Negro</em> Outros</span>
             <span className="legend-flag">⚠ Turno trocado, escala ainda não atualizada</span>
             <span>· Clique num turno para ver opções de troca</span>
           </div>
