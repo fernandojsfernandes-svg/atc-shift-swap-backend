@@ -88,22 +88,64 @@ def _bucket_color(rgb):
     return "other"
 
 
+def _employee_and_name(col0, col1):
+    """
+    Determina qual célula é número de funcionário e qual é nome.
+    Em alguns PDFs (ex.: equipas D e E) a ordem pode ser (nome, número) em vez de (número, nome).
+    Se uma célula for só dígitos e a outra não, usamos a de dígitos como employee.
+    """
+    a = (col0 or "").strip()
+    b = (col1 or "").strip() if col1 is not None else ""
+    if not a or not b:
+        return None, None
+    a_digit = a.isdigit()
+    b_digit = b.isdigit()
+    if a_digit and not b_digit:
+        return a, b
+    if b_digit and not a_digit:
+        return b, a
+    return a, b  # default: primeira col = employee, segunda = name
+
+
+def _employee_and_name_from_row(row, max_cols=4):
+    """
+    Procura número de funcionário e nome nas primeiras colunas da linha.
+    Útil quando o PDF tem coluna extra (ex.: col 0 vazia, número na col 1, nome na col 2).
+    Devolve (employee, name, day_start) onde day_start é o índice da primeira coluna de dias.
+    """
+    candidates = []
+    last_used_idx = -1
+    for i in range(min(max_cols, len(row))):
+        c = (row[i] or "").strip()
+        if c:
+            candidates.append(c)
+            last_used_idx = i
+    if len(candidates) < 2:
+        return None, None, 2
+    employee = next((c for c in candidates if c.isdigit()), None)
+    name = next((c for c in candidates if not c.isdigit()), None)
+    day_start = last_used_idx + 1 if last_used_idx >= 0 else 2
+    return employee, name, day_start
+
+
 def _process_page_fallback(page, year, month, shifts):
     """Fallback sem deteção de tabelas: extrai texto e preenche shifts (sem cores)."""
     table = page.extract_table()
     for row in table or []:
         if not row:
             continue
-        employee = (row[0] or "").strip()
-        name = (row[1] or "").strip() if len(row) > 1 else None
+        employee, name = _employee_and_name(row[0], row[1] if len(row) > 1 else None)
+        day_start = 2
+        if not employee or not name:
+            employee, name, day_start = _employee_and_name_from_row(row)
         if not employee or not name:
             continue
-        for i in range(2, len(row)):
+        for i in range(day_start, len(row)):
             code = row[i]
             if not code or code not in VALID_SHIFT_CODES:
                 continue
             try:
-                day = i - 1
+                day = i - day_start + 1
                 if day < 1 or day > 31:
                     continue
                 d = date(year, month, day)
@@ -144,11 +186,13 @@ def _process_page_with_tables(page, year, month, shifts):
     for row_idx, row in enumerate(extracted_table):
         if not row or row_idx == 0:
             continue
-        employee = (row[0] or "").strip()
-        name = (row[1] or "").strip() if len(row) > 1 else None
+        employee, name = _employee_and_name(row[0], row[1] if len(row) > 1 else None)
+        day_start = 2
+        if not employee or not name:
+            employee, name, day_start = _employee_and_name_from_row(row)
         if not employee or not name:
             continue
-        for i in range(2, len(row)):
+        for i in range(day_start, len(row)):
             cell_value = row[i]
             if not cell_value:
                 base_code = base_codes.get(i)
@@ -160,7 +204,7 @@ def _process_page_with_tables(page, year, month, shifts):
             if code not in VALID_SHIFT_CODES:
                 continue
             try:
-                day = i - 1
+                day = i - day_start + 1
                 if day < 1 or day > 31:
                     continue
                 d = date(year, month, day)

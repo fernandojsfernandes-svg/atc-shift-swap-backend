@@ -92,6 +92,20 @@ def import_schedules(db: Session = Depends(get_db)):
     teams_processed = set()
     schedules_touched: set[tuple[int, int, int]] = set()  # (team_id, year, month)
 
+    print("Import: pedido recebido, a carregar cache (BD)...", flush=True)
+    # Cache em memória para evitar milhares de queries à BD (acelera muito)
+    teams_by_name = {t.nome: t for t in db.query(Team).all()}
+    shift_types_by_code = {st.code: st for st in db.query(ShiftType).all()}
+    users_by_emp = {}
+    for u in db.query(User).all():
+        k = (u.employee_number or "").strip()
+        if k:
+            users_by_emp[k] = u
+    schedules_by_key = {(s.team_id, s.ano, s.mes): s for s in db.query(MonthlySchedule).all()}
+    print("Import: cache OK, a verificar pastas...", flush=True)
+    for folder in PDF_FOLDERS:
+        print(f"  Pasta: {folder} -> existe? {os.path.exists(folder)}", flush=True)
+
     try:
         for folder in PDF_FOLDERS:
             if not os.path.exists(folder):
@@ -109,9 +123,8 @@ def import_schedules(db: Session = Depends(get_db)):
 
                 try:
                     team_code_raw, year_str, month_str = parts
-                    # Aceitar "ROTA-A" (atual) e "A" (seguinte): normalizar para equipa A, B, C, D, E
                     if team_code_raw.upper().startswith("ROTA-"):
-                        team_code = team_code_raw[5:].strip()  # "ROTA-A" -> "A"
+                        team_code = team_code_raw[5:].strip()
                     else:
                         team_code = team_code_raw.strip()
                     year = int(year_str)
@@ -119,24 +132,32 @@ def import_schedules(db: Session = Depends(get_db)):
                 except ValueError:
                     continue
 
-                team = db.query(Team).filter(Team.nome == team_code).first()
+                team = teams_by_name.get(team_code)
                 if not team:
                     team = Team(nome=team_code)
                     db.add(team)
-                    db.commit()
-                    db.refresh(team)
+                    db.flush()
+                    teams_by_name[team_code] = team
 
                 pdf_path = os.path.join(folder, file)
+                print(f"Import: a processar {file} ...", flush=True)
                 shifts = parse_pdf(pdf_path, year, month)
+                print(f"Import: {file} -> {len(shifts)} turnos (a gravar)...", flush=True)
 
+                schedule = schedules_by_key.get((team.id, year, month))
+                if not schedule:
+                    schedule = MonthlySchedule(mes=month, ano=year, team_id=team.id)
+                    db.add(schedule)
+                    db.flush()
+                    schedules_by_key[(team.id, year, month)] = schedule
+                schedules_touched.add((team.id, year, month))
+
+                new_shifts = []
                 for s in shifts:
                     emp = (s["employee"] or "").strip()
                     if not emp:
                         continue
-                    user = db.query(User).filter(
-                        User.employee_number == emp
-                    ).first()
-
+                    user = users_by_emp.get(emp)
                     if not user:
                         user = User(
                             nome=(s.get("name") or "").strip() or emp,
@@ -146,38 +167,10 @@ def import_schedules(db: Session = Depends(get_db)):
                             team_id=team.id
                         )
                         db.add(user)
-                        db.commit()
-                        db.refresh(user)
+                        db.flush()
+                        users_by_emp[emp] = user
 
-                    shift_type = db.query(ShiftType).filter(
-                        ShiftType.code == s["code"]
-                    ).first()
-
-                    schedule = db.query(MonthlySchedule).filter(
-                        MonthlySchedule.mes == month,
-                        MonthlySchedule.ano == year,
-                        MonthlySchedule.team_id == team.id
-                    ).first()
-
-                    if not schedule:
-                        schedule = MonthlySchedule(
-                            mes=month,
-                            ano=year,
-                            team_id=team.id
-                        )
-                        db.add(schedule)
-                        db.commit()
-                        db.refresh(schedule)
-
-                    # Registar schedule tocado (para posterior verificação de inconsistências)
-                    schedules_touched.add((team.id, year, month))
-
-                    existing_shift = db.query(Shift).filter(
-                        Shift.user_id == user.id,
-                        Shift.data == s["date"]
-                    ).first()
-
-                    # Mapear color_bucket para um estatuto de origem estável, que acompanha o turno
+                    shift_type = shift_types_by_code.get(s["code"])
                     bucket = s.get("color_bucket")
                     if bucket is None:
                         origin_status = "rota"
@@ -196,14 +189,17 @@ def import_schedules(db: Session = Depends(get_db)):
                     else:
                         origin_status = None
 
+                    existing_shift = db.query(Shift).filter(
+                        Shift.user_id == user.id,
+                        Shift.data == s["date"]
+                    ).first()
                     if existing_shift:
-                        # Re-import: atualizar cor e origem (ex.: após ajustes no parser para Abril)
                         existing_shift.codigo = s["code"]
                         existing_shift.color_bucket = bucket
                         existing_shift.origin_status = origin_status
                         continue
 
-                    shift = Shift(
+                    new_shifts.append(Shift(
                         data=s["date"],
                         codigo=s["code"],
                         color_bucket=bucket,
@@ -211,11 +207,13 @@ def import_schedules(db: Session = Depends(get_db)):
                         shift_type_id=shift_type.id if shift_type else None,
                         user_id=user.id,
                         schedule_id=schedule.id
-                    )
-                    db.add(shift)
+                    ))
 
+                if new_shifts:
+                    db.add_all(new_shifts)
                 teams_processed.add(team_code)
                 db.commit()
+                print(f"Import: {file} -> gravados {len(new_shifts)} turnos novos", flush=True)
 
         # Após processar todos os ficheiros, verificar inconsistências
         for team_id, year, month in schedules_touched:
