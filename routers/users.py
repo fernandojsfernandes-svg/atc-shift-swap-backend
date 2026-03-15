@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
@@ -115,7 +116,11 @@ def user_month_shifts(
     Devolve todos os turnos (Shift) de um utilizador num determinado mês/ano.
     Inclui cor e flags de inconsistência para o frontend poder mostrar a bandeira vermelha.
     """
-    user = db.query(User).filter(User.employee_number == employee_number).first()
+    emp = (employee_number or "").strip()
+    if not emp:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Encontrar utilizador mesmo que na BD tenha espaços (ex.: equipa D importada com " 404535")
+    user = db.query(User).filter(func.trim(User.employee_number) == emp).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
