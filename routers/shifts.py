@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Shift, User, ShiftType, Team
+from models import Shift, User, ShiftType, Team, SwapRequest
+from models import SwapStatus
 from schemas.shift import ShiftRead, ShiftCreate
 from security import get_current_user
 
@@ -111,12 +112,21 @@ def who_is_on_duty(
         .filter(Shift.data == date_q, Shift.codigo == code_clean)
         .all()
     )
+    # Turnos que foram trocados (aceites): mostrar "TROCA BHT" só quando BHT foi obtido por troca
+    shift_ids = [s.id for s, _, _ in shifts]
+    accepted_swap_shift_ids = set(
+        r.shift_id for r in db.query(SwapRequest.shift_id).filter(
+            SwapRequest.shift_id.in_(shift_ids),
+            SwapRequest.status == SwapStatus.ACCEPTED,
+        ).all()
+    )
     return [
         {
             "employee_number": u.employee_number,
             "nome": u.nome,
             "team": t.nome if t else None,
             "origin_status": s.origin_status,
+            "show_troca_bht": s.origin_status == "bht" and s.id in accepted_swap_shift_ids,
         }
         for s, u, t in shifts
     ]

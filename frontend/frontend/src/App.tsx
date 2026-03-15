@@ -18,6 +18,7 @@ type OnDutyPerson = {
   nome: string
   team: string | null
   origin_status?: string | null
+  show_troca_bht?: boolean
 }
 
 type NotificationDto = {
@@ -255,7 +256,7 @@ function App() {
 
   const maxDay = getDaysInMonth(year, month)
 
-  function originStatusLabel(origin_status: string | null | undefined, team: string | null): string {
+  function originStatusLabel(origin_status: string | null | undefined, team: string | null, showTrocaBht?: boolean): string {
     if (!origin_status) {
       return team ? `ROTA – ${team}` : 'ROTA'
     }
@@ -267,7 +268,7 @@ function App() {
       case 'troca_servico':
         return 'TROCA SERVIÇO'
       case 'bht':
-        return 'TROCA BHT'
+        return showTrocaBht ? 'TROCA BHT' : 'BHT'
       case 'ts':
         return 'TROCA TS'
       case 'mudanca_funcoes':
@@ -818,7 +819,7 @@ function App() {
                 <strong>{p.nome}</strong>
                 <span> {p.employee_number}</span>
                 {p.team && <span> · {p.team}</span>}
-                <span> · {originStatusLabel(p.origin_status, p.team)}</span>
+                <span> · {originStatusLabel(p.origin_status, p.team, p.show_troca_bht)}</span>
               </li>
             ))}
           </ul>
