@@ -94,8 +94,8 @@ def _process_page_fallback(page, year, month, shifts):
     for row in table or []:
         if not row:
             continue
-        employee = row[0]
-        name = row[1]
+        employee = (row[0] or "").strip()
+        name = (row[1] or "").strip() if len(row) > 1 else None
         if not employee or not name:
             continue
         for i in range(2, len(row)):
@@ -144,8 +144,8 @@ def _process_page_with_tables(page, year, month, shifts):
     for row_idx, row in enumerate(extracted_table):
         if not row or row_idx == 0:
             continue
-        employee = row[0]
-        name = row[1] if len(row) > 1 else None
+        employee = (row[0] or "").strip()
+        name = (row[1] or "").strip() if len(row) > 1 else None
         if not employee or not name:
             continue
         for i in range(2, len(row)):

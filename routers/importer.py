@@ -130,15 +130,18 @@ def import_schedules(db: Session = Depends(get_db)):
                 shifts = parse_pdf(pdf_path, year, month)
 
                 for s in shifts:
+                    emp = (s["employee"] or "").strip()
+                    if not emp:
+                        continue
                     user = db.query(User).filter(
-                        User.employee_number == s["employee"]
+                        User.employee_number == emp
                     ).first()
 
                     if not user:
                         user = User(
-                            nome=s["name"],
-                            email=f"{s['employee']}@atc.local",
-                            employee_number=s["employee"],
+                            nome=(s.get("name") or "").strip() or emp,
+                            email=f"{emp}@atc.local",
+                            employee_number=emp,
                             password_hash=hash_password("temp"),
                             team_id=team.id
                         )
