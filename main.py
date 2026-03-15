@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +23,37 @@ from routers import dev
 
 app = FastAPI()
 
+
+def _custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+    try:
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+        )
+        # No Render, usar o URL público no Swagger "Try it out"
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+        if render_url:
+            openapi_schema["servers"] = [{"url": render_url}]
+        app.openapi_schema = openapi_schema
+    except Exception:
+        app.openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+        )
+    return app.openapi_schema
+
+
+app.openapi = _custom_openapi
+
 # CORS: desenvolvimento (localhost) + produção (Vercel + Render docs + FRONTEND_URL)
 _origins = [
     "http://localhost:5173",
@@ -29,11 +63,12 @@ _origins = [
 ]
 if os.environ.get("FRONTEND_URL"):
     _origins.append(os.environ.get("FRONTEND_URL").rstrip("/"))
-# Regex: localhost/127.0.0.1 com porta + qualquer subdomínio .onrender.com (para Swagger /docs)
+# Regex: localhost + *.onrender.com (Swagger) + *.vercel.app (frontend Vercel)
 _origin_regex = (
     r"^https?://("
     r"(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?"
     r"|([a-zA-Z0-9-]+\.)*onrender\.com"
+    r"|([a-zA-Z0-9-]+\.)*vercel\.app"
     r")(/.*)?$"
 )
 app.add_middleware(
