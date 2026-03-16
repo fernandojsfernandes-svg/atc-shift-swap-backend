@@ -21,6 +21,13 @@ type OnDutyPerson = {
   show_troca_bht?: boolean
 }
 
+type UserSearchResult = {
+  id: number
+  nome: string
+  employee_number: string
+  team_id?: number | null
+}
+
 type NotificationDto = {
   id: number
   user_id: number
@@ -147,6 +154,10 @@ function App() {
   const [swapSubmitLoading, setSwapSubmitLoading] = useState(false)
   const [swapSubmitError, setSwapSubmitError] = useState<string | null>(null)
   const [swapSubmitSuccess, setSwapSubmitSuccess] = useState(false)
+
+  const [directQuery, setDirectQuery] = useState('')
+  const [directResults, setDirectResults] = useState<UserSearchResult[]>([])
+  const [directTargets, setDirectTargets] = useState<UserSearchResult[]>([])
 
   const [notifications, setNotifications] = useState<NotificationDto[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
@@ -457,6 +468,71 @@ function App() {
     }
   }
 
+  async function searchDirectUsers(query: string) {
+    setDirectQuery(query)
+    setDirectResults([])
+    if (!query || query.trim().length < 2) {
+      return
+    }
+    try {
+      const res = await apiFetch(`${API_BASE}/users/search?q=${encodeURIComponent(query.trim())}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!res.ok) {
+        return
+      }
+      const data: UserSearchResult[] = await res.json()
+      setDirectResults(data.filter((u) => !directTargets.some((t) => t.id === u.id)))
+    } catch {
+      // silêncio: autocomplete é best-effort
+    }
+  }
+
+  function addDirectTarget(user: UserSearchResult) {
+    if (directTargets.some((t) => t.id === user.id)) return
+    setDirectTargets((prev) => [...prev, user])
+    setDirectResults((prev) => prev.filter((u) => u.id !== user.id))
+    setDirectQuery('')
+  }
+
+  function removeDirectTarget(userId: number) {
+    setDirectTargets((prev) => prev.filter((u) => u.id !== userId))
+  }
+
+  async function createDirectSwap() {
+    if (!selectedShift) return
+    if (directTargets.length === 0) {
+      setSwapSubmitError('Escolha pelo menos um colega para a troca direta.')
+      return
+    }
+    setSwapSubmitLoading(true)
+    setSwapSubmitError(null)
+    setSwapSubmitSuccess(false)
+    try {
+      const res = await fetch(`${API_BASE}/swap-requests/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({
+          shift_id: selectedShift.id,
+          direct_target_ids: directTargets.map((u) => u.id),
+        }),
+      })
+      if (res.status === 401) {
+        setSwapSubmitError('Para criar pedidos de troca é necessário iniciar sessão.')
+        return
+      }
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
+      setSwapSubmitSuccess(true)
+      setSelectedShift(null)
+      setDirectTargets([])
+      setDirectQuery('')
+    } catch (e) {
+      setSwapSubmitError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSwapSubmitLoading(false)
+    }
+  }
+
   return (
     <div className="app-scale">
       <header className="scale-header">
@@ -699,6 +775,55 @@ function App() {
             <button type="button" className="btn-secondary" onClick={addWantedRow}>+ Adicionar outro dia</button>
             <button type="button" className="btn-load btn-load--light" onClick={createSwapOtherDays} disabled={swapSubmitLoading} style={{ marginTop: '0.75rem' }}>
               {swapSubmitLoading ? 'A enviar...' : 'Criar pedido de troca (outros dias)'}
+            </button>
+          </div>
+
+          <div className="swap-option-card">
+            <h3>Troca direta</h3>
+            <p>Quer trocar este turno diretamente com colegas específicos.</p>
+            <label className="control-group">
+              <span>Nome ou número</span>
+              <input
+                type="text"
+                value={directQuery}
+                onChange={(e) => searchDirectUsers(e.target.value)}
+                placeholder="Comece a escrever o nome (ex.: João)..."
+              />
+            </label>
+            {directResults.length > 0 && (
+              <ul className="direct-search-results">
+                {directResults.map((u) => (
+                  <li key={u.id}>
+                    <button type="button" onClick={() => addDirectTarget(u)}>
+                      {u.nome} ({u.employee_number})
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {directTargets.length > 0 && (
+              <div className="direct-targets">
+                <p>Pedido dirigido a:</p>
+                <ul>
+                  {directTargets.map((u) => (
+                    <li key={u.id}>
+                      {u.nome} ({u.employee_number}){' '}
+                      <button type="button" className="btn-remove-row" onClick={() => removeDirectTarget(u.id)}>
+                        remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn-load btn-load--light"
+              onClick={createDirectSwap}
+              disabled={swapSubmitLoading}
+              style={{ marginTop: '0.75rem' }}
+            >
+              {swapSubmitLoading ? 'A enviar...' : 'Criar pedido de troca direta'}
             </button>
           </div>
 

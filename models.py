@@ -103,6 +103,7 @@ class SwapRequest(Base):
     accepter = relationship("User", foreign_keys=[accepter_id])
 
     preferences = relationship("SwapPreference", back_populates="swap_request")
+    direct_targets = relationship("SwapDirectTarget", back_populates="swap_request")
 
 
 class ShiftType(Base):
@@ -136,6 +137,21 @@ class SwapWantedOption(Base):
     # relationships (no back_populates needed yet; read-only helper table)
     swap_request = relationship("SwapRequest")
     shift_type = relationship("ShiftType")
+
+
+class SwapDirectTarget(Base):
+    """
+    Destinatários explícitos de um pedido de troca direta.
+    Apenas estes utilizadores podem aceitar o pedido quando existirem entradas.
+    """
+    __tablename__ = "swap_direct_targets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    swap_request = relationship("SwapRequest", back_populates="direct_targets")
+    user = relationship("User")
 
 
 class CycleProposal(Base):

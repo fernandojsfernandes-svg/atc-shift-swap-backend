@@ -4,7 +4,7 @@ from sqlalchemy import func
 from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
-from models import User, Shift
+from models import User, Shift, Team
 from schemas.user import UserCreate, UserRead, UserPreferencesUpdate
 from schemas.shift import ShiftRead
 
@@ -45,6 +45,33 @@ def list_users(
     db: Session = Depends(get_db),
 ):
     return db.query(User).all()
+
+
+@router.get("/search", response_model=list[UserRead])
+def search_users(
+    q: str,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Procura utilizadores por nome ou número (para autocomplete de troca direta).
+    """
+    term = (q or "").strip()
+    if not term:
+        return []
+    like = f"%{term}%"
+    users = (
+        db.query(User)
+        .filter(
+            (User.nome.ilike(like))
+            | (User.employee_number.ilike(like))
+        )
+        .order_by(User.nome)
+        .limit(limit)
+        .all()
+    )
+    return users
 
 
 @router.delete("/{user_id}")

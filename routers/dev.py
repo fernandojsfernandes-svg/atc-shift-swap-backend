@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date
+
 from security import hash_password
 from database import get_db
 from models import Team, User, MonthlySchedule, Shift
@@ -113,4 +114,66 @@ def seed_data(db: Session = Depends(get_db)):
 
     return {
         "message": "Test data created"
+    }
+
+
+@router.post("/seed-demo-users")
+def seed_demo_users(db: Session = Depends(get_db)):
+    """
+    Cria utilizadores de teste para login:
+    - 2 utilizadores por equipa existente (se houver pelo menos 2 na equipa)
+    - Nome: <Equipa><employee_number_base> (ex.: A405856)
+    - Email: <equipa><employee_number_base>@demo.local (ex.: a405856@demo.local)
+    - Número funcionário: DEMO-<Equipa>-<employee_number_base>
+    - Password: "test"
+    """
+    teams = db.query(Team).all()
+    created: list[dict] = []
+    pwd_hash = hash_password("test")
+
+    for team in teams:
+        base_users = (
+            db.query(User)
+            .filter(User.team_id == team.id)
+            .order_by(User.employee_number)
+            .limit(2)
+            .all()
+        )
+        for u in base_users:
+            # construir identificadores a partir da equipa e do número de funcionário original
+            base_num = (u.employee_number or "").strip() or str(u.id)
+            team_prefix = (team.nome or "").strip() or "X"
+            name = f"{team_prefix}{base_num}"
+            email = f"{team_prefix.lower()}{base_num}@demo.local"
+            emp_number = f"DEMO-{team_prefix}-{base_num}"
+
+            # evitar duplicados se já existir
+            exists = db.query(User).filter(User.email == email).first()
+            if exists:
+                continue
+
+            demo_user = User(
+                nome=name,
+                email=email,
+                password_hash=pwd_hash,
+                employee_number=emp_number,
+                team_id=team.id,
+            )
+            db.add(demo_user)
+            db.flush()
+            created.append(
+                {
+                    "id": demo_user.id,
+                    "team": team.nome,
+                    "nome": demo_user.nome,
+                    "email": demo_user.email,
+                    "employee_number": demo_user.employee_number,
+                    "password": "test",
+                }
+            )
+
+    db.commit()
+    return {
+        "created": created,
+        "total_created": len(created),
     }

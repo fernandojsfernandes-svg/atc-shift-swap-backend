@@ -15,6 +15,7 @@ class WantedOption(BaseModel):
 class SwapCreate(SwapBase):
     acceptable_shift_types: list[str] | None = None
     wanted_options: list[WantedOption] | None = None
+    direct_target_ids: list[int] | None = None
 
 
 class SwapRead(SwapBase):

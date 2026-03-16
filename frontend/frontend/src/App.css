@@ -511,6 +511,42 @@
   background: var(--bg);
 }
 
+.direct-search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0.5rem;
+}
+
+.direct-search-results li button {
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.direct-search-results li button:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.direct-targets ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.direct-targets li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
 .swap-option-card h3 {
   font-size: 1rem;
   margin: 0 0 0.5rem;

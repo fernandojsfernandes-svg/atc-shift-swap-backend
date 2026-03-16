@@ -16,6 +16,7 @@ from models import (
     CycleProposal,
     CycleSwap,
     CycleConfirmation,
+    SwapDirectTarget,
 )
 from services.notify_swap import notify_matching_users_same_day
 from schemas.swap import SwapCreate, SwapRead, SwapHistoryRead
@@ -141,7 +142,7 @@ def create_swap_request(
     )
 
     db.add(new_swap)
-    db.flush()  # need new_swap.id for preferences
+    db.flush()  # need new_swap.id for preferences / direct targets
 
     if swap.acceptable_shift_types:
         for code in swap.acceptable_shift_types:
@@ -164,6 +165,20 @@ def create_swap_request(
                     date=opt.date,
                     shift_type_id=shift_type.id
                 ))
+
+    # alvos diretos (troca direta)
+    if swap.direct_target_ids:
+        for uid in swap.direct_target_ids:
+            if uid == current_user.id:
+                # ignorar a si próprio como alvo direto
+                continue
+            user = db.query(User).filter(User.id == uid).first()
+            if not user:
+                continue
+            db.add(SwapDirectTarget(
+                swap_request_id=new_swap.id,
+                user_id=user.id,
+            ))
 
     db.commit()
     db.refresh(new_swap)
@@ -194,6 +209,14 @@ def accept_swap(
 
     if swap.status != SwapStatus.OPEN:
         raise HTTPException(status_code=400, detail="Swap already processed")
+
+    # Se houver destinatários diretos, apenas eles podem aceitar
+    direct_targets = [t.user_id for t in getattr(swap, "direct_targets", [])]
+    if direct_targets and current_user.id not in direct_targets:
+        raise HTTPException(
+            status_code=403,
+            detail="This swap request is directed to specific users and you are not one of them",
+        )
 
     if swap.requester_id == current_user.id:
         raise HTTPException(
