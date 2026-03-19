@@ -1,4 +1,6 @@
 from datetime import date, datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 from models import SwapStatus
 
@@ -37,3 +39,27 @@ class SwapHistoryRead(BaseModel):
     cycle_id: int | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DirectTargetBrief(BaseModel):
+    nome: str
+    employee_number: str
+
+
+class WantedOptionBrief(BaseModel):
+    date: date
+    shift_types: list[str]
+
+
+class MySwapRequestRead(BaseModel):
+    """Pedido criado pelo utilizador (lista «Os meus pedidos»)."""
+
+    id: int
+    status: SwapStatus
+    kind: Literal["direct", "same_day", "other_days"]
+    offered_shift_date: date
+    offered_shift_code: str
+    acceptable_shift_types: list[str] | None = None
+    wanted_options: list[WantedOptionBrief] | None = None
+    direct_targets: list[DirectTargetBrief] | None = None
+    accepter_name: str | None = None

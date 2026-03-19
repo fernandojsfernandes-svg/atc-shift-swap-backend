@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import text
 from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
+from collections import Counter, defaultdict
 
 from database import get_db
 from models import (
@@ -13,13 +16,23 @@ from models import (
     SwapWantedOption,
     SwapHistory,
     SwapNotification,
+    SwapActionHistory,
+    SwapActionDismissal,
     CycleProposal,
     CycleSwap,
     CycleConfirmation,
     SwapDirectTarget,
 )
 from services.notify_swap import notify_matching_users_same_day
-from schemas.swap import SwapCreate, SwapRead, SwapHistoryRead
+from schemas.swap import (
+    SwapCreate,
+    SwapRead,
+    SwapHistoryRead,
+    MySwapRequestRead,
+    DirectTargetBrief,
+    WantedOptionBrief,
+)
+from schemas.swap_action import SwapActionHistoryRead
 from security import get_current_user
 from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
 from services.swap_engine import detect_swap_cycles
@@ -28,6 +41,38 @@ router = APIRouter(
     prefix="/swap-requests",
     tags=["Swap Requests"]
 )
+
+
+def _shifts_after_swap(shifts: list[Shift], give_away_id: int, receive_shift: Shift, new_user_id: int):
+    """
+    Devolve lista em memória com os turnos após a troca:
+    - remove o turno com id == give_away_id
+    - adiciona o turno receive_shift com user_id = new_user_id
+    """
+    result: list[SimpleNamespace] = []
+    for s in shifts:
+        if s.id == give_away_id:
+            continue
+        result.append(SimpleNamespace(data=s.data, codigo=s.codigo, user_id=new_user_id))
+    result.append(SimpleNamespace(data=receive_shift.data, codigo=receive_shift.codigo, user_id=new_user_id))
+    result.sort(key=lambda s: s.data)
+    return result
+
+
+def _has_two_shifts_same_day(shifts_mem: list[SimpleNamespace]) -> bool:
+    counter = Counter((s.user_id, s.data) for s in shifts_mem)
+    return any(count > 1 for count in counter.values())
+
+
+def _violates_next_day_rule(shifts_mem: list[SimpleNamespace]) -> bool:
+    n = len(shifts_mem)
+    for i in range(n - 1):
+        today = shifts_mem[i]
+        tomorrow = shifts_mem[i + 1]
+        if (tomorrow.data - today.data).days == 1:
+            if is_next_day_incompatible(today.codigo, tomorrow.codigo):
+                return True
+    return False
 
 
 def _validate_cycle_execution(db: Session, shifts: list, users: list) -> None:
@@ -123,17 +168,37 @@ def create_swap_request(
             detail="This shift is already part of a pending cycle proposal"
         )
 
-    # Já existe OPEN?
-    existing_open = db.query(SwapRequest).filter(
+    # Troca direta: não pode incluir-se a si próprio
+    if swap.direct_target_ids:
+        other_ids = [uid for uid in swap.direct_target_ids if uid != current_user.id]
+        if not other_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Não pode fazer um pedido de troca direta a si próprio. Escolha pelo menos um colega.",
+            )
+
+    # Vários pedidos diretos para o mesmo turno são permitidos; um único pedido "largo" por turno
+    existing_opens = db.query(SwapRequest).filter(
         SwapRequest.shift_id == swap.shift_id,
         SwapRequest.status == SwapStatus.OPEN
-    ).first()
-
-    if existing_open:
-        raise HTTPException(
-            status_code=400,
-            detail="There is already an open swap request for this shift"
-        )
+    ).all()
+    is_direct = bool(swap.direct_target_ids)
+    for ex in existing_opens:
+        has_direct = db.query(SwapDirectTarget).filter(SwapDirectTarget.swap_request_id == ex.id).first() is not None
+        if not is_direct:
+            # Novo pedido é "largo" → não pode haver nenhum em aberto
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um pedido de troca em aberto para este turno.",
+                headers={"X-Existing-Swap-Id": str(ex.id)},
+            )
+        if not has_direct:
+            # Novo é direto mas já existe um pedido largo para este turno
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um pedido de troca em aberto para este turno.",
+                headers={"X-Existing-Swap-Id": str(ex.id)},
+            )
 
     new_swap = SwapRequest(
         shift_id=swap.shift_id,
@@ -168,9 +233,9 @@ def create_swap_request(
 
     # alvos diretos (troca direta)
     if swap.direct_target_ids:
+        now = datetime.utcnow()
         for uid in swap.direct_target_ids:
             if uid == current_user.id:
-                # ignorar a si próprio como alvo direto
                 continue
             user = db.query(User).filter(User.id == uid).first()
             if not user:
@@ -179,16 +244,23 @@ def create_swap_request(
                 swap_request_id=new_swap.id,
                 user_id=user.id,
             ))
+            if getattr(user, "notifications_enabled", True):
+                db.add(SwapNotification(
+                    user_id=user.id,
+                    swap_request_id=new_swap.id,
+                    created_at=now,
+                ))
 
     db.commit()
     db.refresh(new_swap)
 
-    try:
-        notify_matching_users_same_day(db, new_swap)
-        db.commit()
-    except Exception:
-        db.rollback()
-        # não falhar o pedido por causa das notificações
+    # Só notificar por matching quando NÃO for troca direta
+    if not swap.direct_target_ids:
+        try:
+            notify_matching_users_same_day(db, new_swap)
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return new_swap
 
@@ -211,8 +283,8 @@ def accept_swap(
         raise HTTPException(status_code=400, detail="Swap already processed")
 
     # Se houver destinatários diretos, apenas eles podem aceitar
-    direct_targets = [t.user_id for t in getattr(swap, "direct_targets", [])]
-    if direct_targets and current_user.id not in direct_targets:
+    direct_target_ids = [r.user_id for r in db.query(SwapDirectTarget).filter(SwapDirectTarget.swap_request_id == swap.id).all()]
+    if direct_target_ids and current_user.id not in direct_target_ids:
         raise HTTPException(
             status_code=403,
             detail="This swap request is directed to specific users and you are not one of them",
@@ -229,13 +301,14 @@ def accept_swap(
     if not original_shift:
         raise HTTPException(status_code=404, detail="Original shift not found")
 
-    existing = db.query(SwapRequest).filter(
-        SwapRequest.shift_id == original_shift.id,
-        SwapRequest.status == SwapStatus.ACCEPTED
-    ).first()
+    # O turno oferecido tem de pertencer ainda ao pedinte (não bloquear por trocas antigas
+    # no mesmo registo de turno — após várias trocas o mesmo shift_id pode ter histórico ACCEPTED).
+    if original_shift.user_id != swap.requester_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Este pedido já não é válido: o turno já não pertence a quem o pediu.",
+        )
 
-    if existing:
-        raise HTTPException(status_code=400, detail="Shift already swapped")
     accepter_shift = db.query(Shift).filter(
         Shift.user_id == current_user.id,
         Shift.data == original_shift.data
@@ -264,7 +337,7 @@ def accept_swap(
             if not confirm_incompatibility:
                 raise HTTPException(
                     status_code=409,
-                    detail="Only T and Mt cannot have N the next day. Use confirm_incompatibility=true if you want to proceed."
+                    detail="A troca não é permitida: tem T ou Mt no dia em que receberia o turno e tem N no dia seguinte (regra: T e Mt não podem ser seguidos de N)."
                 )
 
     # Verificar preferências de turno
@@ -283,58 +356,413 @@ def accept_swap(
 
     try:
 
-        original_user = original_shift.user_id
-        temp_user_id = -1
+        requester_id = swap.requester_id
+        accepter_id = current_user.id
 
-        original_shift.user_id = temp_user_id
-        db.flush()
+        # Shifts atuais de cada utilizador antes da troca
+        requester_shifts = db.query(Shift).filter(Shift.user_id == requester_id).all()
+        accepter_shifts = db.query(Shift).filter(Shift.user_id == accepter_id).all()
 
-        accepter_shift.user_id = original_user
-        db.flush()
+        # Listas em memória após a troca
+        requester_after = _shifts_after_swap(
+            requester_shifts,
+            give_away_id=original_shift.id,
+            receive_shift=accepter_shift,
+            new_user_id=requester_id,
+        )
+        accepter_after = _shifts_after_swap(
+            accepter_shifts,
+            give_away_id=accepter_shift.id,
+            receive_shift=original_shift,
+            new_user_id=accepter_id,
+        )
 
-        original_shift.user_id = current_user.id
-        db.flush()
-
-                # verificar 9 dias consecutivos
-        user_shifts = db.query(Shift).filter(
-            Shift.user_id == current_user.id
-        ).all()
-
-        # incluir o turno recebido no swap
-        user_shifts.append(original_shift)
-
-        if exceeds_max_consecutive_days(user_shifts):
+        # 1) Não pode haver 2 turnos no mesmo dia
+        if _has_two_shifts_same_day(requester_after) or _has_two_shifts_same_day(accepter_after):
             raise HTTPException(
                 status_code=400,
-                detail="Swap would exceed 9 consecutive working days"
+                detail="A troca não é permitida porque algum utilizador ficaria com dois turnos no mesmo dia."
             )
 
-        swap.accepter_id = current_user.id
+        # 2) Regra T/Mt -> N
+        if _violates_next_day_rule(requester_after) or _violates_next_day_rule(accepter_after):
+            raise HTTPException(
+                status_code=400,
+                detail="A troca não é permitida: criaria uma sequência T ou Mt seguidos de N no dia seguinte."
+            )
+
+        # 3) Regra 9 dias consecutivos
+        if exceeds_max_consecutive_days(requester_after) or exceeds_max_consecutive_days(accepter_after):
+            raise HTTPException(
+                status_code=400,
+                detail="A troca não é permitida: criaria mais de 9 dias consecutivos de trabalho para algum utilizador."
+            )
+
+        # Se chegou aqui, o estado 'depois da troca' é válido → agora sim gravamos na BD.
+        # A constraint unique_user_day é DEFERRABLE, por isso só será verificada no commit.
+        db.execute(
+            text(
+                """
+                UPDATE shifts
+                SET user_id = CASE
+                    WHEN id = :accepter_shift_id THEN :requester_id
+                    WHEN id = :original_shift_id THEN :accepter_id
+                    ELSE user_id
+                END
+                WHERE id IN (:accepter_shift_id, :original_shift_id)
+                """
+            ),
+            {
+                "accepter_shift_id": accepter_shift.id,
+                "original_shift_id": original_shift.id,
+                "requester_id": requester_id,
+                "accepter_id": accepter_id,
+            },
+        )
+        db.flush()
+
+        swap.accepter_id = accepter_id
         swap.status = SwapStatus.ACCEPTED
 
+        other_opens = db.query(SwapRequest).filter(
+            SwapRequest.shift_id == original_shift.id,
+            SwapRequest.id != swap.id,
+            SwapRequest.status == SwapStatus.OPEN
+        ).all()
         db.query(SwapRequest).filter(
             SwapRequest.shift_id == original_shift.id,
             SwapRequest.id != swap.id,
             SwapRequest.status == SwapStatus.OPEN
         ).update({"status": SwapStatus.REJECTED})
+        now = datetime.utcnow()
+
+        # Marcar notificações antigas (dos pedidos que ficaram rejeitados) como lidas,
+        # para a UI deixar de mostrar "Aceitar/Recusar" em pedidos já fechados.
+        if other_opens:
+            other_ids = [o.id for o in other_opens]
+            db.query(SwapNotification).filter(
+                SwapNotification.swap_request_id.in_(other_ids)
+            ).update({"read_at": now}, synchronize_session=False)
+
+        # Marcar notificações antigas deste swap como lidas (para a UI não manter ações pendentes).
+        db.query(SwapNotification).filter(
+            SwapNotification.swap_request_id == swap.id
+        ).update({"read_at": now}, synchronize_session=False)
+        for other in other_opens:
+            for t in db.query(SwapDirectTarget).filter(SwapDirectTarget.swap_request_id == other.id).all():
+                if t.user_id == accepter_id:
+                    continue
+                target_user = db.query(User).filter(User.id == t.user_id).first()
+                if target_user and getattr(target_user, "notifications_enabled", True):
+                    db.add(SwapNotification(
+                        user_id=t.user_id,
+                        swap_request_id=swap.id,
+                        created_at=now,
+                        notification_kind="request_fulfilled",
+                    ))
 
         db.add(SwapHistory(
             swap_request_id=swap.id,
-            requester_id=swap.requester_id,
-            accepter_id=current_user.id,
+            requester_id=requester_id,
+            accepter_id=accepter_id,
             shift_id_offered=original_shift.id,
             shift_id_received=accepter_shift.id,
             accepted_at=datetime.utcnow(),
         ))
 
+        # Registar ação do utilizador destinatário
+        db.add(
+            SwapActionHistory(
+                swap_request_id=swap.id,
+                action_type="ACCEPTED",
+                actor_id=accepter_id,
+                requester_id=requester_id,
+                offered_shift_code=original_shift.codigo,
+                offered_shift_date=original_shift.data,
+                created_at=datetime.utcnow(),
+            )
+        )
+
         db.commit()
 
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         print("Swap error:", e)
         raise HTTPException(status_code=500, detail="Swap transaction failed")
 
     return {"message": "Swap completed successfully"}
+
+
+@router.post("/{swap_id}/reject")
+def reject_swap(
+    swap_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """O destinatário pode recusar um pedido de troca em aberto."""
+    swap = db.query(SwapRequest).filter(SwapRequest.id == swap_id).first()
+    if not swap:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+
+    if swap.status != SwapStatus.OPEN:
+        raise HTTPException(status_code=400, detail="Swap already processed")
+
+    if swap.requester_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot reject your own swap request")
+
+    direct_target_ids = [
+        r.user_id
+        for r in db.query(SwapDirectTarget).filter(SwapDirectTarget.swap_request_id == swap.id).all()
+    ]
+    if direct_target_ids and current_user.id not in direct_target_ids:
+        raise HTTPException(
+            status_code=403,
+            detail="This swap request is directed to specific users and you are not one of them",
+        )
+
+    # Fecha o pedido e limpa ações pendentes nas notificações dos destinatários
+    swap.status = SwapStatus.REJECTED
+    now = datetime.utcnow()
+
+    offered_shift = db.query(Shift).filter(Shift.id == swap.shift_id).first()
+    if not offered_shift:
+        raise HTTPException(status_code=404, detail="Original shift not found")
+
+    db.query(SwapNotification).filter(
+        SwapNotification.swap_request_id == swap.id,
+        SwapNotification.user_id != swap.requester_id,
+    ).update({"read_at": now})
+
+    # Notifica o requester que o pedido foi recusado
+    requester = db.query(User).filter(User.id == swap.requester_id).first()
+    if requester and getattr(requester, "notifications_enabled", True):
+        db.add(
+            SwapNotification(
+                user_id=swap.requester_id,
+                swap_request_id=swap.id,
+                created_at=now,
+                notification_kind="request_rejected",
+                rejected_by_name=current_user.nome,
+            )
+        )
+
+    # Registar ação do utilizador destinatário
+    db.add(
+        SwapActionHistory(
+            swap_request_id=swap.id,
+            action_type="REJECTED",
+            actor_id=current_user.id,
+            requester_id=swap.requester_id,
+            offered_shift_code=offered_shift.codigo,
+            offered_shift_date=offered_shift.data,
+            created_at=now,
+        )
+    )
+
+    db.commit()
+    return {"message": "Swap request rejected."}
+
+
+@router.post("/actions/{action_id}/dismiss")
+def dismiss_swap_action(
+    action_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove a linha do histórico de ações só para o utilizador atual."""
+    row = db.query(SwapActionHistory).filter(SwapActionHistory.id == action_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Registo não encontrado")
+    if current_user.id not in (row.actor_id, row.requester_id):
+        raise HTTPException(status_code=403, detail="Sem permissão para apagar este registo")
+    existing = (
+        db.query(SwapActionDismissal)
+        .filter(
+            SwapActionDismissal.user_id == current_user.id,
+            SwapActionDismissal.swap_action_history_id == action_id,
+        )
+        .first()
+    )
+    if existing:
+        return {"message": "Já não consta no seu histórico."}
+    db.add(
+        SwapActionDismissal(
+            user_id=current_user.id,
+            swap_action_history_id=action_id,
+            dismissed_at=datetime.utcnow(),
+        )
+    )
+    db.commit()
+    return {"message": "Removido do seu histórico."}
+
+
+@router.get("/actions/me", response_model=list[SwapActionHistoryRead])
+def list_my_swap_actions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Histórico das minhas ações como destinatário:
+    - Aceito / Recusado em pedidos de troca.
+    Mostra o código do turno oferecido pelo requester (swap.shift).
+    """
+    dismissed_ids = [
+        x[0]
+        for x in db.query(SwapActionDismissal.swap_action_history_id)
+        .filter(SwapActionDismissal.user_id == current_user.id)
+        .all()
+    ]
+    q = (
+        db.query(SwapActionHistory)
+        .options(
+            joinedload(SwapActionHistory.requester),
+            joinedload(SwapActionHistory.actor),
+        )
+        .filter(
+            (SwapActionHistory.actor_id == current_user.id)
+            | (SwapActionHistory.requester_id == current_user.id)
+        )
+    )
+    if dismissed_ids:
+        q = q.filter(SwapActionHistory.id.notin_(dismissed_ids))
+    rows = q.order_by(SwapActionHistory.created_at.desc()).limit(200).all()
+
+    return [
+        SwapActionHistoryRead(
+            id=r.id,
+            swap_request_id=r.swap_request_id,
+            action_type=r.action_type,
+            actor_id=r.actor_id,
+            requester_id=r.requester_id,
+            offered_shift_code=r.offered_shift_code,
+            offered_shift_date=r.offered_shift_date,
+            requester_name=r.requester.nome if r.requester else "",
+            actor_name=r.actor.nome if r.actor else "",
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/mine", response_model=list[MySwapRequestRead])
+def list_my_swap_requests(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Só pedidos em aberto (OPEN) criados pelo utilizador.
+    Aceites/recusas ficam no histórico de ações (/swap-requests/actions/me).
+    """
+    lim = min(max(1, limit), 200)
+    swaps = (
+        db.query(SwapRequest)
+        .filter(
+            SwapRequest.requester_id == current_user.id,
+            SwapRequest.status == SwapStatus.OPEN,
+        )
+        .options(
+            joinedload(SwapRequest.shift),
+            joinedload(SwapRequest.accepter),
+            joinedload(SwapRequest.direct_targets).joinedload(SwapDirectTarget.user),
+            joinedload(SwapRequest.preferences).joinedload(SwapPreference.shift_type),
+        )
+        .order_by(SwapRequest.id.desc())
+        .limit(lim)
+        .all()
+    )
+    if not swaps:
+        return []
+
+    swap_ids = [s.id for s in swaps]
+    wanted_rows = (
+        db.query(SwapWantedOption)
+        .filter(SwapWantedOption.swap_request_id.in_(swap_ids))
+        .options(joinedload(SwapWantedOption.shift_type))
+        .all()
+    )
+    wanted_map: dict[int, dict] = {}
+    for w in wanted_rows:
+        sid = w.swap_request_id
+        if sid not in wanted_map:
+            wanted_map[sid] = defaultdict(set)
+        code = w.shift_type.code if w.shift_type else "?"
+        wanted_map[sid][w.date].add(code)
+
+    out: list[MySwapRequestRead] = []
+    for s in swaps:
+        shift = s.shift
+        if not shift:
+            continue
+        direct_list = list(s.direct_targets) if s.direct_targets else []
+        if direct_list:
+            kind = "direct"
+            targets = [
+                DirectTargetBrief(
+                    nome=(t.user.nome or "") if t.user else "",
+                    employee_number=(t.user.employee_number or "").strip() if t.user else "",
+                )
+                for t in direct_list
+                if t.user
+            ]
+            acceptable = None
+            wanted_opts = None
+        elif s.id in wanted_map and wanted_map[s.id]:
+            kind = "other_days"
+            wanted_opts = [
+                WantedOptionBrief(date=d, shift_types=sorted(codes))
+                for d, codes in sorted(wanted_map[s.id].items())
+            ]
+            acceptable = None
+            targets = None
+        else:
+            kind = "same_day"
+            prefs = list(s.preferences) if s.preferences else []
+            acceptable = [p.shift_type.code for p in prefs if p.shift_type] or None
+            wanted_opts = None
+            targets = None
+
+        accepter_name = None
+        if s.accepter_id and s.accepter:
+            accepter_name = s.accepter.nome
+
+        out.append(
+            MySwapRequestRead(
+                id=s.id,
+                status=s.status,
+                kind=kind,
+                offered_shift_date=shift.data,
+                offered_shift_code=shift.codigo,
+                acceptable_shift_types=acceptable,
+                wanted_options=wanted_opts,
+                direct_targets=targets if kind == "direct" else None,
+                accepter_name=accepter_name,
+            )
+        )
+    return out
+
+
+@router.delete("/{swap_id}")
+def cancel_swap_request(
+    swap_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """O requester pode cancelar o seu próprio pedido de troca em aberto."""
+    swap = db.query(SwapRequest).filter(SwapRequest.id == swap_id).first()
+    if not swap:
+        raise HTTPException(status_code=404, detail="Pedido de troca não encontrado")
+    if swap.requester_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Só pode cancelar os seus próprios pedidos")
+    if swap.status != SwapStatus.OPEN:
+        raise HTTPException(status_code=400, detail="Só pode cancelar pedidos em aberto")
+    swap.status = SwapStatus.REJECTED
+    db.commit()
+    return {"message": "Pedido de troca cancelado."}
+
 
 @router.get("/open", response_model=list[SwapRead])
 def list_open_swaps(

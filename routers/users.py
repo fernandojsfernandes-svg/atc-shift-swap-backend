@@ -1,9 +1,18 @@
+import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
+
+
+def _normalize(s: str) -> str:
+    """Remove acentos para pesquisa insensível (ex.: Mário -> mario)."""
+    if not s:
+        return ""
+    n = unicodedata.normalize("NFD", s)
+    return "".join(c for c in n if unicodedata.category(c) != "Mn").lower()
 from models import User, Shift, Team
 from schemas.user import UserCreate, UserRead, UserPreferencesUpdate
 from schemas.shift import ShiftRead
@@ -50,28 +59,29 @@ def list_users(
 @router.get("/search", response_model=list[UserRead])
 def search_users(
     q: str,
-    limit: int = 10,
+    limit: int = 15,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Procura utilizadores por nome ou número (para autocomplete de troca direta).
+    Procura utilizadores por nome ou número (autocomplete troca direta).
+    Pesquisa insensível a acentos (ex.: "Mario" encontra "Mário Ribeiro").
     """
     term = (q or "").strip()
     if not term:
         return []
-    like = f"%{term}%"
-    users = (
-        db.query(User)
-        .filter(
-            (User.nome.ilike(like))
-            | (User.employee_number.ilike(like))
-        )
-        .order_by(User.nome)
-        .limit(limit)
-        .all()
-    )
-    return users
+    norm_term = _normalize(term)
+    users = db.query(User).order_by(User.nome).all()
+    matches = []
+    for u in users:
+        nome = (u.nome or "").strip()
+        emp = (u.employee_number or "").strip()
+        if norm_term in _normalize(nome) or norm_term in _normalize(emp):
+            matches.append(u)
+        elif term.lower() in nome.lower() or term in emp:
+            if u not in matches:
+                matches.append(u)
+    return matches[:limit]
 
 
 @router.delete("/{user_id}")

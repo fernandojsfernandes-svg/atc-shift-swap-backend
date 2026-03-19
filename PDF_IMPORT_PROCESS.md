@@ -24,6 +24,13 @@ Each team roster is distributed as a separate PDF file.
 4. The extracted data is normalized.
 5. Shift records are stored in the database.
 
+### Important parser/import rules in current implementation
+
+- Shift codes are accepted as short alphanumeric tokens from PDF cells (case-sensitive where relevant, e.g. `MT` vs `Mt`).
+- Rows from the section **"Em qualificação"** (and below) are ignored by parser.
+- If the same employee appears in more than one team PDF in the same month (team change), import merges by user/day.
+- During merge, low-priority markers (`mE`, `AF`) do not overwrite an already known concrete shift code for the same day.
+
 The swap engine uses this data as the base schedule for all swap operations.
 
 ---
@@ -57,6 +64,8 @@ Team A roster
 Controller 1 → shifts for entire month
 Controller 2 → shifts for entire month
 Controller 3 → shifts for entire month
+
+Note: an employee can legitimately appear in two team rosters in the same month when there is a team change. This is expected and handled by merge rules above.
 
 ---
 

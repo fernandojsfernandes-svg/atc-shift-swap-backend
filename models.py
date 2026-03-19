@@ -74,7 +74,13 @@ class Shift(Base):
     schedule_id = Column(Integer, ForeignKey("monthly_schedules.id"), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("user_id", "data", name="unique_user_day"),
+        UniqueConstraint(
+            "user_id",
+            "data",
+            name="unique_user_day",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     user = relationship("User", back_populates="shifts")
@@ -193,7 +199,7 @@ class SwapHistory(Base):
 
 
 class SwapNotification(Base):
-    """Notificação a um utilizador: existe um pedido de troca que pode satisfazer (mesmo dia)."""
+    """Notificação: pedido que pode aceitar (can_accept) ou pedido já satisfeito por outro (request_fulfilled)."""
     __tablename__ = "swap_notifications"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -201,6 +207,46 @@ class SwapNotification(Base):
     swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=False, index=True)
     created_at = Column(DateTime, nullable=False)
     read_at = Column(DateTime, nullable=True)
+    notification_kind = Column(String, default="can_accept", nullable=False)  # can_accept | request_fulfilled
+    rejected_by_name = Column(String, nullable=True)
 
     user = relationship("User", backref="swap_notifications")
     swap_request = relationship("SwapRequest", backref="notifications")
+
+
+class SwapActionHistory(Base):
+    """
+    Histórico persistente de ações no contexto de trocas: aceitar ou recusar.
+    É por utilizador (actor) e exibe o turno proposto pelo requester (código do requester).
+    """
+    __tablename__ = "swap_action_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    swap_request_id = Column(Integer, ForeignKey("swap_requests.id"), nullable=False, index=True)
+
+    action_type = Column(String, nullable=False)  # ACCEPTED | REJECTED
+
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    requester_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    offered_shift_code = Column(String, nullable=False, index=True)
+    offered_shift_date = Column(Date, nullable=False, index=True)
+
+    created_at = Column(DateTime, nullable=False, index=True)
+
+    actor = relationship("User", foreign_keys=[actor_id])
+    requester = relationship("User", foreign_keys=[requester_id])
+    swap_request = relationship("SwapRequest")
+
+
+class SwapActionDismissal(Base):
+    """Utilizador ocultou uma linha do histórico de ações (só na sua vista)."""
+
+    __tablename__ = "swap_action_dismissals"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    swap_action_history_id = Column(
+        Integer, ForeignKey("swap_action_history.id", ondelete="CASCADE"), primary_key=True
+    )
+    dismissed_at = Column(DateTime, nullable=False)

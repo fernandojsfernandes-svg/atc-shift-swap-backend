@@ -39,6 +39,7 @@ Backend for managing rosters and shift swaps between Air Traffic Controllers (AT
 - PDF folder(s) are configurable; user places current-month and next-month PDFs there.
 - File names may be inconsistent; team and month might need to be read from PDF content. After import, report how many teams were processed; if not 5, warn.
 - **Controller identity:** Employee number in the PDF uniquely identifies the controller. Same number in two team PDFs in the same month (e.g. team change mid-month) ⇒ same user, shifts in different team schedules.
+- Team changes (`mE`) are valid business events: the same employee can appear in multiple team PDFs in the same month. Import must merge by user/day without losing concrete duty codes.
 
 ## Tech stack
 
@@ -72,6 +73,10 @@ Backend for managing rosters and shift swaps between Air Traffic Controllers (AT
     - Ao criar pedido de troca (mesmo dia), utilizadores que podem satisfazer e cumprem regras recebem notificação in-app; preferência `notifications_enabled` em User; GET/PATCH `/notifications/`, PATCH `/users/me`.
   - Cores do PDF:
     - `color_bucket`: red (BHT), yellow (trabalho suplementar/extraordinário), pink (extra/troca), gray_light/gray_dark, lime (férias/ausência).
+  - Parser/import robustness:
+    - aceita códigos alfanuméricos curtos (ex.: `IB`, `TR`, `MT`) sem colapsar case;
+    - ignora secção "Em qualificação" (essa população não entra no ciclo de trocas);
+    - merge por utilizador/dia no import para evitar sobrescrever turnos concretos com marcadores de baixa prioridade (`mE`, `AF`) quando há mudança de equipa no mesmo mês.
 
 - **To do / improve:**
   - Eventuais filtros adicionais (por utilizador/equipa) nos históricos e endpoints.

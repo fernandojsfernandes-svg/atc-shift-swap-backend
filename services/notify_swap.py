@@ -90,9 +90,10 @@ def _would_swap_break_rules(
 
 def notify_matching_users_same_day(db: Session, swap: SwapRequest) -> None:
     """
-    Para um pedido de troca com preferências no mesmo dia: encontra utilizadores
-    que tenham um turno aceite nesse dia, que cumpram as regras, e que tenham
-    notificações ativas; cria SwapNotification para cada um.
+    Para um pedido de troca no mesmo dia: notifica quem pode satisfazer o pedido.
+    - Com preferências (DC, DS, …): só quem tem nesse dia um turno desse tipo.
+    - Sem preferências (“aceita qualquer”): todos os que têm algum turno nesse dia
+      (exceto o pedinte), desde que a troca respeite as regras.
     """
     offered_shift = db.query(Shift).filter(Shift.id == swap.shift_id).first()
     if not offered_shift or not offered_shift.data:
@@ -103,24 +104,29 @@ def notify_matching_users_same_day(db: Session, swap: SwapRequest) -> None:
         .filter(SwapPreference.swap_request_id == swap.id)
         .all()
     )
-    if not prefs:
-        # "Aceita qualquer" → não notificamos (mensagem pouco concreta)
-        return
-
-    allowed_type_ids = [p.shift_type_id for p in prefs]
     date_d = offered_shift.data
     requester_id = swap.requester_id
 
-    # Turnos nesse dia cujo tipo está nos aceites e não é do requester
-    candidate_shifts = (
-        db.query(Shift)
-        .filter(
-            Shift.data == date_d,
-            Shift.user_id != requester_id,
-            Shift.shift_type_id.in_(allowed_type_ids),
+    if prefs:
+        allowed_type_ids = [p.shift_type_id for p in prefs]
+        candidate_shifts = (
+            db.query(Shift)
+            .filter(
+                Shift.data == date_d,
+                Shift.user_id != requester_id,
+                Shift.shift_type_id.in_(allowed_type_ids),
+            )
+            .all()
         )
-        .all()
-    )
+    else:
+        candidate_shifts = (
+            db.query(Shift)
+            .filter(
+                Shift.data == date_d,
+                Shift.user_id != requester_id,
+            )
+            .all()
+        )
 
     now = datetime.utcnow()
     for accepter_shift in candidate_shifts:

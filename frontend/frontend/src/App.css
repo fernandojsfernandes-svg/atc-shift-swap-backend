@@ -7,6 +7,56 @@
   text-align: left;
 }
 
+.login-bar {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.login-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.login-form .control-group {
+  min-width: 160px;
+}
+
+.login-form input {
+  min-width: 180px;
+}
+
+.login-bar-session {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.login-bar-session span {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.btn-logout {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--text);
+}
+
 .scale-header h1 {
   font-size: 1.75rem;
   margin: 0 0 0.25rem;
@@ -332,6 +382,66 @@
   color: #dc2626;
 }
 
+/* Os meus pedidos de troca */
+
+.my-swaps-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.my-swaps-section h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.my-swaps-subtitle {
+  font-size: 1.05rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--text-h);
+}
+
+.my-swaps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.my-swaps-list--muted .my-swap-item {
+  opacity: 0.92;
+}
+
+.my-swap-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+}
+
+.my-swap-item-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.my-swap-detail {
+  margin-top: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.my-swap-detail--ok {
+  color: #15803d;
+}
+
 /* Notificações (só com sessão iniciada) */
 
 .notifications-section {
@@ -388,6 +498,13 @@
   min-width: 0;
   font-size: 0.95rem;
   color: var(--text-h);
+}
+
+.notifications-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Quem está de serviço */

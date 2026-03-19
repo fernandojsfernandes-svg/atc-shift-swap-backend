@@ -1,17 +1,52 @@
 import pdfplumber
 from datetime import date
 from collections import Counter
+import re
+import unicodedata
 
 
-VALID_SHIFT_CODES = {
-    "M",
-    "T",
-    "N",
-    "MG",
-    "Mt",
-    "DC",
-    "DS",
-}
+# Aceitar qualquer código curto alfanumérico (domínios ATC).
+# Exemplos: "M", "T", "N", "MG", "Mt", "DC", "DS", "IB", "MT", "TR", "A1", "T2".
+# Não normalizamos case: "MT" != "Mt" (importante para regras futuras).
+SHIFT_CODE_RE = re.compile(r"^[A-Za-z]{1,3}\d{0,2}$")
+
+def _normalize_pdf_shift_code(code) -> str:
+    """
+    Normaliza o texto extraído do PDF.
+    - Remove whitespace interior (ex.: "I B" -> "IB")
+    - Mantém case (MT vs Mt são códigos distintos no teu domínio).
+    """
+    c = (str(code) if code is not None else "").strip()
+    # junta tokens para lidar com "I B" ou "M t"
+    c = "".join(c.split())
+    return c
+
+
+def _is_shift_code(code: str) -> bool:
+    if not code:
+        return False
+    return SHIFT_CODE_RE.match(code) is not None
+
+
+def _normalize_text_for_match(text: str) -> str:
+    """Lower + sem acentos para comparações robustas de cabeçalhos/secções."""
+    t = unicodedata.normalize("NFKD", text)
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    return t.lower()
+
+
+def _is_qualification_section_row(row) -> bool:
+    """
+    True se a linha indicar o início da secção "Em qualificação".
+    Regra do negócio: essa linha e as seguintes não devem ser processadas.
+    """
+    if not row:
+        return False
+    probe = " ".join((str(c) if c is not None else "") for c in row[:5]).strip()
+    if not probe:
+        return False
+    p = _normalize_text_for_match(probe)
+    return "em qualificacao" in p
 
 
 def _get_cell_color(image, cell_box):
@@ -42,6 +77,19 @@ def _bucket_color(rgb):
 
     r, g, b = rgb
 
+    def in_range(x, center, tol=6):
+        return center - tol <= x <= center + tol
+
+    # Vermelho forte (ex.: BHT)
+    if in_range(r, 255) and in_range(g, 0) and in_range(b, 0):
+        return "red"
+
+    # Rosa claro (ex.: mudança de funções)
+    # Nota: esta deteção tem de vir antes do filtro "quase branco",
+    # caso contrário RGB como (255,192,192) seria descartado.
+    if in_range(r, 255) and in_range(g, 192) and in_range(b, 192):
+        return "pink"
+
     # Muito próximo de branco: ignorar (rotação base)
     if r > 240 and g > 240 and b > 240:
         return None
@@ -50,17 +98,6 @@ def _bucket_color(rgb):
     # Só consideramos "troca" (gray_light/gray_dark) para cinzas mais escuros (~169 e ~128)
     if r > 175 and g > 175 and b > 175:
         return None
-
-    def in_range(x, center, tol=6):
-        return center - tol <= x <= center + tol
-
-    # Vermelho forte (ex.: BHT)
-    if in_range(r, 255) and in_range(g, 0) and in_range(b, 0):
-        return "red"
-
-    # Rosa claro (ex.: trabalho extra / troca, a confirmar)
-    if in_range(r, 255) and in_range(g, 192) and in_range(b, 192):
-        return "pink"
 
     # Cinzas (dois tons distintos; cinza claro ~169, escuro ~128)
     if in_range(r, 169) and in_range(g, 169) and in_range(b, 169):
@@ -134,6 +171,8 @@ def _process_page_fallback(page, year, month, shifts):
     for row in table or []:
         if not row:
             continue
+        if _is_qualification_section_row(row):
+            break
         employee, name = _employee_and_name(row[0], row[1] if len(row) > 1 else None)
         day_start = 2
         if not employee or not name:
@@ -141,8 +180,8 @@ def _process_page_fallback(page, year, month, shifts):
         if not employee or not name:
             continue
         for i in range(day_start, len(row)):
-            code = row[i]
-            if not code or code not in VALID_SHIFT_CODES:
+            code = _normalize_pdf_shift_code(row[i])
+            if not _is_shift_code(code):
                 continue
             try:
                 day = i - day_start + 1
@@ -181,11 +220,14 @@ def _process_page_with_tables(page, year, month, shifts):
             if not parts:
                 continue
             base_code = parts[-1].strip()
-            if base_code in VALID_SHIFT_CODES:
+            base_code = _normalize_pdf_shift_code(base_code)
+            if _is_shift_code(base_code):
                 base_codes[i] = base_code
     for row_idx, row in enumerate(extracted_table):
         if not row or row_idx == 0:
             continue
+        if _is_qualification_section_row(row):
+            break
         employee, name = _employee_and_name(row[0], row[1] if len(row) > 1 else None)
         day_start = 2
         if not employee or not name:
@@ -200,8 +242,8 @@ def _process_page_with_tables(page, year, month, shifts):
                     continue
                 code = base_code
             else:
-                code = cell_value
-            if code not in VALID_SHIFT_CODES:
+                code = _normalize_pdf_shift_code(cell_value)
+            if not _is_shift_code(code):
                 continue
             try:
                 day = i - day_start + 1

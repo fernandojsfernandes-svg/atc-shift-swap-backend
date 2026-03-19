@@ -26,6 +26,31 @@ PDF_FOLDERS = [PDF_FOLDER_ATUAL, PDF_FOLDER_SEGUINTE]
 # Equipas esperadas (5 turnos A–E). Se após o import não forem 5, é devolvido um aviso.
 EXPECTED_TEAMS = {"A", "B", "C", "D", "E"}
 
+# Códigos de baixa prioridade para merge entre equipas no mesmo dia.
+# Ex.: mE (mudança de equipa) pode aparecer numa equipa enquanto noutra existe o turno real.
+LOW_PRIORITY_CODES = {"ME", "AF"}
+
+
+def _norm_code(code: str | None) -> str:
+    return (code or "").strip().upper()
+
+
+def _should_replace_existing_code(existing_code: str | None, new_code: str | None) -> bool:
+    """
+    Decide se um novo código deve sobrescrever o código já existente para (user, day).
+    Regra principal:
+    - não substituir um turno "real" por marcadores de baixa prioridade (mE/AF)
+    - permitir substituir mE/AF por um código mais concreto
+    - se ambos são do mesmo "nível", mantém o novo (last write wins)
+    """
+    e = _norm_code(existing_code)
+    n = _norm_code(new_code)
+    if not n:
+        return False
+    if e and e not in LOW_PRIORITY_CODES and n in LOW_PRIORITY_CODES:
+        return False
+    return True
+
 
 def _mark_inconsistencies_for_schedule(db: Session, schedule: MonthlySchedule):
     """
@@ -152,7 +177,10 @@ def import_schedules(db: Session = Depends(get_db)):
                     schedules_by_key[(team.id, year, month)] = schedule
                 schedules_touched.add((team.id, year, month))
 
-                new_shifts = []
+                # Deduplicar por (user_id, data) dentro do próprio ficheiro.
+                # O parser pode, em alguns PDFs, extrair duas células para o mesmo dia do mesmo utilizador.
+                # Como a BD tem UNIQUE(user_id, data), isso causa IntegrityError no db.add_all().
+                new_shifts_by_user_day: dict[tuple[int, date], Shift] = {}
                 for s in shifts:
                     emp = (s["employee"] or "").strip()
                     if not emp:
@@ -194,21 +222,34 @@ def import_schedules(db: Session = Depends(get_db)):
                         Shift.data == s["date"]
                     ).first()
                     if existing_shift:
-                        existing_shift.codigo = s["code"]
-                        existing_shift.color_bucket = bucket
-                        existing_shift.origin_status = origin_status
+                        if _should_replace_existing_code(existing_shift.codigo, s["code"]):
+                            existing_shift.codigo = s["code"]
+                            existing_shift.color_bucket = bucket
+                            existing_shift.origin_status = origin_status
+                            existing_shift.shift_type_id = shift_type.id if shift_type else None
                         continue
+                    key = (user.id, s["date"])
+                    if key in new_shifts_by_user_day:
+                        # Se o PDF extraiu duas entradas idênticas, mantemos apenas uma e atualizamos campos.
+                        prev = new_shifts_by_user_day[key]
+                        if _should_replace_existing_code(prev.codigo, s["code"]):
+                            prev.codigo = s["code"]
+                            prev.color_bucket = bucket
+                            prev.origin_status = origin_status
+                            prev.shift_type_id = shift_type.id if shift_type else None
+                            prev.schedule_id = schedule.id
+                    else:
+                        new_shifts_by_user_day[key] = Shift(
+                            data=s["date"],
+                            codigo=s["code"],
+                            color_bucket=bucket,
+                            origin_status=origin_status,
+                            shift_type_id=shift_type.id if shift_type else None,
+                            user_id=user.id,
+                            schedule_id=schedule.id,
+                        )
 
-                    new_shifts.append(Shift(
-                        data=s["date"],
-                        codigo=s["code"],
-                        color_bucket=bucket,
-                        origin_status=origin_status,
-                        shift_type_id=shift_type.id if shift_type else None,
-                        user_id=user.id,
-                        schedule_id=schedule.id
-                    ))
-
+                new_shifts = list(new_shifts_by_user_day.values())
                 if new_shifts:
                     db.add_all(new_shifts)
                 teams_processed.add(team_code)

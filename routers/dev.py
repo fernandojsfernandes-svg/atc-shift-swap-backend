@@ -5,7 +5,23 @@ from datetime import date
 
 from security import hash_password
 from database import get_db
-from models import Team, User, MonthlySchedule, Shift
+from models import (
+    Team,
+    User,
+    MonthlySchedule,
+    Shift,
+    SwapRequest,
+    SwapHistory,
+    SwapNotification,
+    SwapActionHistory,
+    SwapActionDismissal,
+    SwapPreference,
+    SwapWantedOption,
+    CycleProposal,
+    CycleSwap,
+    CycleConfirmation,
+    SwapDirectTarget,
+)
 
 router = APIRouter(
     prefix="/dev",
@@ -120,60 +136,79 @@ def seed_data(db: Session = Depends(get_db)):
 @router.post("/seed-demo-users")
 def seed_demo_users(db: Session = Depends(get_db)):
     """
-    Cria utilizadores de teste para login:
-    - 2 utilizadores por equipa existente (se houver pelo menos 2 na equipa)
-    - Nome: <Equipa><employee_number_base> (ex.: A405856)
-    - Email: <equipa><employee_number_base>@demo.local (ex.: a405856@demo.local)
-    - Número funcionário: DEMO-<Equipa>-<employee_number_base>
-    - Password: "test"
+    Prepara TODOS os utilizadores existentes (com número de funcionário) para login de testes em local.
+
+    - Remove utilizadores "dummy" antigos (employee_number a começar por 'DEMO-')
+    - Para cada utilizador real:
+      - Email: <número>@demo.local (ex.: 404527@demo.local)
+      - Password: "test"
+    - Na app:
+      - Login: <número>@demo.local
+      - Nº funcionário: <número> (ex.: 404527)
     """
-    teams = db.query(Team).all()
-    created: list[dict] = []
+    updated: list[dict] = []
+
+    # 1) Apagar dummies antigos (se existirem)
+    dummy_users = db.query(User).filter(User.employee_number.like("DEMO-%")).all()
+    if dummy_users:
+        dummy_ids = [u.id for u in dummy_users]
+        # apagar eventuais shifts associados a esses dummies, por segurança
+        db.query(Shift).filter(Shift.user_id.in_(dummy_ids)).delete(synchronize_session=False)
+        for u in dummy_users:
+            db.delete(u)
+        db.flush()
+
+    # 2) Atualizar todos os utilizadores reais com email/password de demo
     pwd_hash = hash_password("test")
-
-    for team in teams:
-        base_users = (
-            db.query(User)
-            .filter(User.team_id == team.id)
-            .order_by(User.employee_number)
-            .limit(2)
-            .all()
+    real_users = db.query(User).all()
+    for u in real_users:
+        emp = (u.employee_number or "").strip()
+        if not emp:
+            continue
+        u.email = f"{emp}@demo.local"
+        u.password_hash = pwd_hash
+        updated.append(
+            {
+                "id": u.id,
+                "nome": u.nome,
+                "email": u.email,
+                "employee_number": u.employee_number,
+                "password": "test",
+            }
         )
-        for u in base_users:
-            # construir identificadores a partir da equipa e do número de funcionário original
-            base_num = (u.employee_number or "").strip() or str(u.id)
-            team_prefix = (team.nome or "").strip() or "X"
-            name = f"{team_prefix}{base_num}"
-            email = f"{team_prefix.lower()}{base_num}@demo.local"
-            emp_number = f"DEMO-{team_prefix}-{base_num}"
-
-            # evitar duplicados se já existir
-            exists = db.query(User).filter(User.email == email).first()
-            if exists:
-                continue
-
-            demo_user = User(
-                nome=name,
-                email=email,
-                password_hash=pwd_hash,
-                employee_number=emp_number,
-                team_id=team.id,
-            )
-            db.add(demo_user)
-            db.flush()
-            created.append(
-                {
-                    "id": demo_user.id,
-                    "team": team.nome,
-                    "nome": demo_user.nome,
-                    "email": demo_user.email,
-                    "employee_number": demo_user.employee_number,
-                    "password": "test",
-                }
-            )
 
     db.commit()
     return {
-        "created": created,
-        "total_created": len(created),
+        "updated": updated,
+        "total_updated": len(updated),
+        "hint": "Login: <número>@demo.local (ex.: 404527@demo.local). Nº funcionário: o mesmo número (404527).",
     }
+
+
+@router.post("/clear-swaps")
+def clear_swaps(db: Session = Depends(get_db)):
+    """
+    Apaga todos os pedidos de troca e notificações associados (para começar testes de troca com a base limpa).
+    Não mexe em utilizadores nem em turnos.
+    """
+    # apagar confirmações / ciclos primeiro (dependem de SwapRequest)
+    db.query(CycleConfirmation).delete(synchronize_session=False)
+    db.query(CycleSwap).delete(synchronize_session=False)
+    db.query(CycleProposal).delete(synchronize_session=False)
+
+    # apagar históricos e notificações
+    db.query(SwapHistory).delete(synchronize_session=False)
+    db.query(SwapActionDismissal).delete(synchronize_session=False)
+    db.query(SwapActionHistory).delete(synchronize_session=False)
+    db.query(SwapNotification).delete(synchronize_session=False)
+
+    # apagar preferências, opções e destinatários diretos
+    db.query(SwapPreference).delete(synchronize_session=False)
+    db.query(SwapWantedOption).delete(synchronize_session=False)
+    db.query(SwapDirectTarget).delete(synchronize_session=False)
+
+    # finalmente, apagar os pedidos de troca
+    db.query(SwapRequest).delete(synchronize_session=False)
+
+    db.commit()
+    return {"message": "Todos os pedidos de troca e notificações foram apagados."}

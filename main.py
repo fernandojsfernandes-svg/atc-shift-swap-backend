@@ -58,6 +58,7 @@ app.openapi = _custom_openapi
 _origins = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5175",
     "https://atc-shift-swap-backend-6njjhahe7.vercel.app",
     "https://atc-shift-swap-backend.onrender.com",
 ]
@@ -168,6 +169,38 @@ if "sqlite" in _db_url:
                 conn.commit()
         except Exception:
             pass
+
+from sqlalchemy import text
+
+# Migração: coluna notification_kind (SQLite e PostgreSQL)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN notification_kind VARCHAR DEFAULT 'can_accept'"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: coluna rejected_by_name (SQLite e PostgreSQL)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN rejected_by_name VARCHAR"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: tornar unique_user_day DEFERRABLE em PostgreSQL
+try:
+    if "postgres" in _db_url:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE shifts DROP CONSTRAINT IF EXISTS unique_user_day"))
+            conn.execute(text(
+                "ALTER TABLE shifts "
+                "ADD CONSTRAINT unique_user_day UNIQUE (user_id, data) "
+                "DEFERRABLE INITIALLY DEFERRED"
+            ))
+            conn.commit()
+except Exception:
+    pass
 
 create_shift_types()
 
