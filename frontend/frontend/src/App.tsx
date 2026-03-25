@@ -234,7 +234,10 @@ function formatSwapActionOfferedDatePt(isoDate: string | null | undefined): stri
 
 /** Sufixo « por DC» (ou vários códigos) na linha de resumo — turno(s) do(s) destinatário(s). */
 function directSwapTheirShiftsSuffix(
-  targets: { their_shift_code?: string | null }[] | null | undefined,
+  targets:
+    | Array<{ their_shift_code?: string | null; nome?: string; employee_number?: string }>
+    | null
+    | undefined,
 ): string {
   if (!targets?.length) return ''
   const codes = [
@@ -290,7 +293,7 @@ function App() {
   const [otherDaysReceiveOnOfferDate, setOtherDaysReceiveOnOfferDate] = useState<string[]>([])
   /** Noutros dias: por linha — data + turnos que pode fazer / aceita receber da escala dele. */
   const [otherDaysAvailabilityRows, setOtherDaysAvailabilityRows] = useState<
-    { date: string; types: string[] }
+    { date: string; types: string[] }[]
   >([{ date: '', types: [] }])
   const [swapSubmitLoading, setSwapSubmitLoading] = useState(false)
   const [swapSubmitError, setSwapSubmitError] = useState<string | null>(null)
@@ -1294,7 +1297,7 @@ function App() {
           <button
             type="button"
             className="btn-load btn-load--light"
-            onClick={loadShifts}
+            onClick={() => void loadShifts()}
             disabled={loading}
           >
             {loading ? 'A carregar...' : 'Carregar escala'}
