@@ -22,6 +22,19 @@
   gap: 1rem;
 }
 
+.login-bar-hint {
+  flex: 1 1 100%;
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.35;
+  text-align: left;
+}
+
+.login-bar-hint strong {
+  color: var(--text-h);
+}
+
 .login-form .control-group {
   min-width: 160px;
 }
@@ -66,6 +79,51 @@
   color: var(--text);
   font-size: 0.95rem;
   margin: 0 0 1.25rem;
+}
+
+.edit-scale-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: var(--text-h);
+  cursor: pointer;
+  user-select: none;
+}
+
+.edit-scale-toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
+.edit-scale-toggle:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.calendar-cell--edit-mode.calendar-cell--clickable {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.shift-edit-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.25rem;
+  margin-top: 0.75rem;
+  align-items: flex-end;
+}
+
+.shift-edit-fields .control-group {
+  min-width: 140px;
+}
+
+.shift-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 .scale-controls {
@@ -336,6 +394,15 @@
   color: #1a1a1a !important;
 }
 
+/* TROCA BHT: metade superior vermelha (origem BHT/TS), base cinzento escuro (troca). */
+.calendar-cell--split-bht .cell-half--top {
+  background: var(--shift-red);
+}
+
+.calendar-cell--split-bht .cell-half--top .cell-day {
+  color: #fff !important;
+}
+
 .calendar-cell--split .cell-half--bottom {
   position: relative;
   border-radius: 0 0 5px 5px;
@@ -379,7 +446,7 @@
 }
 
 .legend-flag {
-  color: #dc2626;
+  color: var(--shift-red, #dc2626);
 }
 
 /* Os meus pedidos de troca */
@@ -429,6 +496,16 @@
   min-width: 0;
   font-size: 0.95rem;
   color: var(--text-h);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Resumo do pedido: uma linha (ex.: #73 · Troca direta · M · dia 27 março) */
+.my-swap-summary-line {
+  display: block;
+  line-height: 1.45;
 }
 
 .my-swap-detail {
@@ -436,6 +513,12 @@
   font-size: 0.88rem;
   color: var(--text);
   line-height: 1.4;
+}
+
+/* «Para: …» sempre na linha seguinte ao resumo (troca direta). */
+.my-swap-detail--para {
+  display: block;
+  width: 100%;
 }
 
 .my-swap-detail--ok {
@@ -500,6 +583,29 @@
   color: var(--text-h);
 }
 
+.notifications-can-accept-text {
+  display: block;
+}
+
+.notifications-wanted-list {
+  margin: 0.5rem 0 0.35rem;
+  padding-left: 1.25rem;
+  color: var(--text-h);
+  font-size: 0.92rem;
+}
+
+.notifications-wanted-list li {
+  margin-bottom: 0.25rem;
+}
+
+.notifications-wanted-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  font-style: italic;
+}
+
 .notifications-item-actions {
   display: flex;
   flex-wrap: wrap;
@@ -523,7 +629,8 @@
 .on-duty-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* Alinha o botão com a base das caixas (dia, mês, ano, turno), não com as etiquetas */
+  align-items: flex-end;
   gap: 1.5rem;
   margin-bottom: 1rem;
 }
@@ -541,18 +648,13 @@
   min-width: 80px;
 }
 
-.on-duty-context {
-  font-size: 0.85rem;
-  color: var(--text);
-  margin-left: 0.5rem;
-  line-height: 1;
-  padding-top: 0.25rem;
+.on-duty-month-select {
+  min-width: 9.5rem;
 }
 
-@media (max-width: 480px) {
-  .on-duty-context {
-    margin-left: 0.75rem;
-  }
+.on-duty-year-input {
+  width: 4.75rem;
+  max-width: 100%;
 }
 
 .on-duty-list {
@@ -670,6 +772,14 @@
   color: var(--text-h);
 }
 
+/* Títulos das três modalidades — mesmo vermelho que .legend-flag («Turno trocado…») = --shift-red */
+.swap-option-card h3.swap-option-title {
+  color: var(--shift-red, #dc2626);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
 .swap-option-card p {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
@@ -707,14 +817,220 @@
   margin-bottom: 0.75rem !important;
 }
 
-.wanted-row {
+.swap-bilateral-summary {
   display: flex;
   flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.swap-bilateral-summary__offer,
+.swap-bilateral-summary__need {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.swap-bilateral-summary__offer {
+  border-right: 1px solid var(--border);
+  padding-right: 1rem;
+}
+
+.swap-bilateral-summary__arrow {
+  display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+
+.swap-bilateral-summary__label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.swap-bilateral-summary__offer p,
+.swap-bilateral-summary__need p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-h);
+}
+
+.swap-bilateral-summary__meta {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.swap-bilateral-summary__need-intro {
+  font-size: 0.85rem !important;
+  color: var(--text) !important;
+  line-height: 1.4;
+}
+
+.swap-checkbox-group--in-summary {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+.swap-other-section {
+  margin-top: 1.1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.swap-other-section__title {
+  font-size: 0.95rem;
+  margin: 0 0 0.35rem;
+  color: var(--text-h);
+}
+
+.swap-other-section__intro {
+  margin: 0 0 0.65rem !important;
+  font-size: 0.85rem !important;
+  color: var(--text) !important;
+  line-height: 1.45;
+}
+
+.swap-other-section--step {
+  margin-top: 1rem;
+}
+
+.swap-other-section--proposta1 {
+  border-color: var(--accent);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.swap-other-step {
+  display: flex;
   gap: 0.75rem;
+  align-items: flex-start;
   margin-bottom: 0.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
+}
+
+.swap-other-step--propose {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: rgba(96, 165, 250, 0.08);
+  margin-bottom: 1rem;
+}
+
+.swap-other-step--inline {
+  margin-bottom: 0.35rem;
+  align-items: center;
+}
+
+.swap-other-step__num {
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  line-height: 1.75rem;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+}
+
+.swap-other-step__title {
+  margin: 0 !important;
+}
+
+.swap-other-step--propose .swap-other-step__title {
+  margin: 0 0 0.25rem !important;
+}
+
+.swap-other-step__intro {
+  margin: 0 !important;
+}
+
+@media (max-width: 560px) {
+  .swap-bilateral-summary__offer {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 0.75rem;
+  }
+
+  .swap-bilateral-summary__arrow {
+    width: 100%;
+    order: 2;
+  }
+
+  .swap-bilateral-summary__need {
+    order: 3;
+  }
+}
+
+.wanted-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.wanted-row-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wanted-row-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.wanted-row-date-label {
+  max-width: 280px;
+}
+
+.wanted-row-shifts-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.wanted-row--date-only {
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.my-swap-proponho-fazer {
+  margin-top: 0.5rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.my-swap-wanted-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.my-swap-wanted-list li {
+  margin-bottom: 0.2rem;
 }
 
 .wanted-date {
@@ -763,6 +1079,28 @@
 @media (max-width: 640px) {
   .app-scale {
     padding: 1rem;
+  }
+
+  .login-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .login-form .control-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .login-form .control-group input {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    font-size: 16px;
+  }
+
+  .login-form .btn-load {
+    width: 100%;
+    max-width: none;
   }
 
   .scale-header h1 {
