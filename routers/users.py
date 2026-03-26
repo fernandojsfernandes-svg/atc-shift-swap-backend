@@ -1,4 +1,6 @@
 import unicodedata
+from datetime import date as date_type
+
 from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -165,10 +167,12 @@ def user_month_shifts(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    start = date_type(year, month, 1)
+    end = date_type(year + 1, 1, 1) if month == 12 else date_type(year, month + 1, 1)
     shifts = db.query(Shift).filter(
         Shift.user_id == user.id,
-        Shift.data >= f"{year:04d}-{month:02d}-01",
-        Shift.data < f"{year:04d}-{month + 1:02d}-01" if month < 12 else f"{year + 1:04d}-01-01",
+        Shift.data >= start,
+        Shift.data < end,
     ).all()
 
     shift_ids = [s.id for s in shifts]
