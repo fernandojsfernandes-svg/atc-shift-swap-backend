@@ -395,6 +395,8 @@ function App() {
 
   /** Evita carregar no 1.º render; depois, mudanças de mês/ano disparam o carregamento. */
   const skipMonthAutoLoad = useRef(true)
+  /** Debounce ao digitar o n.º de funcionário (evita um pedido por tecla). */
+  const employeeNumberLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Evita aplicar resultados de pesquisa antigos se o utilizador continuar a escrever. */
   const employeeSearchSeqRef = useRef(0)
 
@@ -468,7 +470,7 @@ function App() {
     }
   }
 
-  /** Ao mudar mês/ano com as setas, carrega a escala (evita o 1.º render para não duplicar login / carregamento inicial). */
+  /** Ao mudar mês/ano com as setas, carrega a escala (1.º render ignorado). */
   useEffect(() => {
     if (skipMonthAutoLoad.current) {
       skipMonthAutoLoad.current = false
@@ -479,6 +481,21 @@ function App() {
     void loadShifts({ employeeNumber: emp, year, month })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reagir a year/month
   }, [year, month])
+
+  /** Sem sessão: carrega a escala com o n.º/mês iniciais (o efeito do mês ignora o 1.º render). */
+  useEffect(() => {
+    if (localStorage.getItem('token')) return
+    const emp = employeeNumber.trim()
+    if (!emp) return
+    void loadShifts({ employeeNumber: emp, year, month })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só montagem inicial sem token
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (employeeNumberLoadTimerRef.current) clearTimeout(employeeNumberLoadTimerRef.current)
+    }
+  }, [])
 
   async function runImport() {
     setImportLoading(true)
@@ -1208,6 +1225,11 @@ function App() {
     if (/^\d+$/.test(digitsOnly)) {
       setEmployeeNumber(digitsOnly)
       setEmployeeScaleResults([])
+      if (employeeNumberLoadTimerRef.current) clearTimeout(employeeNumberLoadTimerRef.current)
+      employeeNumberLoadTimerRef.current = setTimeout(() => {
+        employeeNumberLoadTimerRef.current = null
+        void loadShifts({ employeeNumber: digitsOnly, year, month })
+      }, 400)
       return
     }
     setEmployeeNumber('')
@@ -1221,6 +1243,10 @@ function App() {
 
   function pickEmployeeForScale(user: UserSearchResult) {
     const emp = String(user.employee_number ?? '').trim()
+    if (employeeNumberLoadTimerRef.current) {
+      clearTimeout(employeeNumberLoadTimerRef.current)
+      employeeNumberLoadTimerRef.current = null
+    }
     setEmployeeNumber(emp)
     setEmployeeInput(`${user.nome} (${emp})`)
     setEmployeeScaleResults([])
@@ -1370,8 +1396,8 @@ function App() {
         </div>
         <h1>Escala pessoal</h1>
         <p className="scale-subtitle">
-          N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. Ao mudar o mês com as setas, a escala carrega
-          automaticamente; use «Carregar escala» para atualizar o mesmo mês ou após alterar o funcionário.
+          N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao alterar o
+          n.º ou ao escolher um nome na lista.
         </p>
 
         <div className="scale-controls">
@@ -1411,14 +1437,11 @@ function App() {
               ›
             </button>
           </div>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={() => void loadShifts()}
-            disabled={loading}
-          >
-            {loading ? 'A carregar...' : 'Carregar escala'}
-          </button>
+          {loading && (
+            <p className="scale-loading-hint" aria-live="polite">
+              A carregar escala…
+            </p>
+          )}
           {currentUser && (
             <label
               className="edit-scale-toggle"
@@ -1453,7 +1476,7 @@ function App() {
                 className="btn-load btn-load--light"
                 onClick={runImport}
                 disabled={importLoading || clearSchedulesLoading}
-                title="Lê os PDF das pastas 'atual' e 'seguinte' e importa para a base de dados. Depois use 'Carregar escala' para o mês desejado."
+                title="Lê os PDF das pastas 'atual' e 'seguinte' e importa para a base de dados. Depois mude o mês ou atualize o n.º para ver a escala."
               >
                 {importLoading ? 'A importar...' : 'Importar escalas'}
               </button>
@@ -1512,7 +1535,7 @@ function App() {
           )}
           {importResult.teams.length > 0 && (
             <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem' }}>
-              Pode agora escolher o mês (ex.: Abril) e carregar em &quot;Carregar escala&quot;.
+              Pode agora escolher o mês (ex.: Abril) — a escala atualiza ao mudar o mês ou o n.º de funcionário.
             </p>
           )}
         </div>
