@@ -64,6 +64,12 @@ _origins = [
 ]
 if os.environ.get("FRONTEND_URL"):
     _origins.append(os.environ.get("FRONTEND_URL").rstrip("/"))
+_extra_cors = os.environ.get("CORS_EXTRA_ORIGINS", "")
+if _extra_cors:
+    for part in _extra_cors.split(","):
+        o = part.strip().rstrip("/")
+        if o and o not in _origins:
+            _origins.append(o)
 # Regex: localhost + *.onrender.com (Swagger) + *.vercel.app (frontend Vercel)
 _origin_regex = (
     r"^https?://("
@@ -184,6 +190,86 @@ except Exception:
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN rejected_by_name VARCHAR"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: notificação atada a um turno concreto do aceitante (trocas outros dias)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN accepter_shift_id INTEGER"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: notificação pacote (várias pernas mesma troca)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN package_accepter_shift_ids TEXT"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: texto livre em notificações (ex.: resumo após aceitar troca)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_notifications ADD COLUMN body_text TEXT"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: histórico de acções com detalhe do pacote
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_action_history ADD COLUMN package_legs_json TEXT"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: código do turno cedido pelo aceitante no histórico
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE swap_action_history ADD COLUMN accepter_shift_code VARCHAR"))
+        conn.commit()
+except Exception:
+    pass
+
+# Migração: troca direta no histórico de ações (texto UI sem «pedido continua aberto…»)
+try:
+    with engine.connect() as conn:
+        if "sqlite" in _db_url:
+            conn.execute(
+                text(
+                    "ALTER TABLE swap_action_history ADD COLUMN direct_swap BOOLEAN DEFAULT 0"
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    "ALTER TABLE swap_action_history ADD COLUMN direct_swap BOOLEAN DEFAULT FALSE NOT NULL"
+                )
+            )
+        conn.commit()
+except Exception:
+    pass
+
+# Preencher histórico antigo a partir de swap_direct_targets
+try:
+    with engine.connect() as conn:
+        if "sqlite" in _db_url:
+            conn.execute(
+                text(
+                    "UPDATE swap_action_history SET direct_swap = 1 "
+                    "WHERE swap_request_id IN (SELECT DISTINCT swap_request_id FROM swap_direct_targets)"
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    "UPDATE swap_action_history SET direct_swap = TRUE "
+                    "WHERE swap_request_id IN (SELECT DISTINCT swap_request_id FROM swap_direct_targets)"
+                )
+            )
         conn.commit()
 except Exception:
     pass

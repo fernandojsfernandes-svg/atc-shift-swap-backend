@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from models import SwapStatus
 
 
@@ -44,6 +44,10 @@ class SwapHistoryRead(BaseModel):
 class DirectTargetBrief(BaseModel):
     nome: str
     employee_number: str
+    their_shift_code: str | None = Field(
+        default=None,
+        description="Código do turno do destinatário no dia do pedido (troca direta).",
+    )
 
 
 class WantedOptionBrief(BaseModel):

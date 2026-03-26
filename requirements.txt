@@ -10,3 +10,7 @@ pdfplumber>=0.11.0
 pillow>=12.0.0
 # PostgreSQL (para deploy online; em local usa SQLite)
 psycopg2-binary>=2.9.0
+# Driver alternativo (melhor SSL no Windows com Render); database.py usa se estiver instalado
+psycopg[binary]>=3.1.0
+# Se ainda falhar SSL no Windows: DATABASE_DRIVER=pg8000 no .env (pilha SSL diferente)
+pg8000>=1.31.0

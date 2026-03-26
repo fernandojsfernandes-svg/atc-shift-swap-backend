@@ -14,6 +14,7 @@ def _normalize(s: str) -> str:
     n = unicodedata.normalize("NFD", s)
     return "".join(c for c in n if unicodedata.category(c) != "Mn").lower()
 from models import User, Shift, Team
+from services.swap_display import shift_ids_in_accepted_swaps
 from schemas.user import UserCreate, UserRead, UserPreferencesUpdate
 from schemas.shift import ShiftRead
 
@@ -170,5 +171,23 @@ def user_month_shifts(
         Shift.data < f"{year:04d}-{month + 1:02d}-01" if month < 12 else f"{year + 1:04d}-01-01",
     ).all()
 
+    shift_ids = [s.id for s in shifts]
+    swapped_ids = shift_ids_in_accepted_swaps(db, shift_ids)
+
     # Serializar enquanto a sessão está aberta (evita e3q8 / "not bound to a Session")
-    return [ShiftRead.model_validate(s) for s in shifts]
+    return [
+        ShiftRead(
+            id=s.id,
+            user_id=s.user_id,
+            schedule_id=s.schedule_id,
+            data=s.data,
+            codigo=s.codigo,
+            color_bucket=s.color_bucket,
+            inconsistency_flag=s.inconsistency_flag,
+            inconsistency_message=s.inconsistency_message,
+            origin_status=s.origin_status,
+            show_troca_bht=(s.origin_status == "bht" and s.id in swapped_ids),
+            show_troca_ts=(s.origin_status == "ts" and s.id in swapped_ids),
+        )
+        for s in shifts
+    ]

@@ -24,6 +24,9 @@
   --shift-gray-dark: #374151;
   --shift-lime: #10b981;
   --shift-yellow: #facc15;
+  /* Títulos das opções de troca — mesmo vermelho da legenda «Turno trocado…» (.legend-flag) */
+  --swap-option-heading: var(--shift-red);
+  --swap-option-heading-shadow: rgba(0, 0, 0, 0.75);
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -55,6 +58,8 @@
 @media (max-width: 640px) {
   #root {
     border-inline: none;
+    overflow-x: clip;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -104,4 +109,40 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+.my-swap-status {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.my-swap-item--closed {
+  opacity: 0.92;
+}
+
+/* Títulos das três modalidades de troca (mesmo dia / outros dias / direta) */
+.swap-option-title {
+  color: var(--swap-option-heading, var(--shift-red));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px var(--swap-option-heading-shadow);
+  margin: 0 0 0.65rem;
+}
+
+/* Botão «Criar pedido» + mensagem (erro/sucesso) na mesma linha */
+.swap-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+}
+.swap-create-row .btn-load {
+  flex-shrink: 0;
+}
+.swap-create-msg {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  margin: 0;
+  align-self: center;
 }

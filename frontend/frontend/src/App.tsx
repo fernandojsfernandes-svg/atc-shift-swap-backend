@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import './App.css'
 
 type ShiftDto = {
@@ -310,6 +310,9 @@ function swapActionPackageLines(legs: SwapPackageLegDto[]) {
 
 function App() {
   const [employeeNumber, setEmployeeNumber] = useState('405541')
+  /** Texto no campo (pode ser só n.º ou «nome (n.º)» após escolha na lista). */
+  const [employeeInput, setEmployeeInput] = useState('405541')
+  const [employeeScaleResults, setEmployeeScaleResults] = useState<UserSearchResult[]>([])
   const [year, setYear] = useState(2026)
   const [month, setMonth] = useState(3)
   const [shifts, setShifts] = useState<ShiftDto[]>([])
@@ -390,6 +393,11 @@ function App() {
   const [loginLoading, setLoginLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id?: number; nome: string; email: string; employee_number: string } | null>(null)
 
+  /** Evita carregar no 1.º render; depois, mudanças de mês/ano disparam o carregamento. */
+  const skipMonthAutoLoad = useRef(true)
+  /** Evita aplicar resultados de pesquisa antigos se o utilizador continuar a escrever. */
+  const employeeSearchSeqRef = useRef(0)
+
   const shiftsByDate = useMemo(() => {
     const map: Record<string, ShiftDto> = {}
     for (const s of shifts) {
@@ -459,6 +467,18 @@ function App() {
       setLoading(false)
     }
   }
+
+  /** Ao mudar mês/ano com as setas, carrega a escala (evita o 1.º render para não duplicar login / carregamento inicial). */
+  useEffect(() => {
+    if (skipMonthAutoLoad.current) {
+      skipMonthAutoLoad.current = false
+      return
+    }
+    const emp = employeeNumber.trim()
+    if (!emp) return
+    void loadShifts({ employeeNumber: emp, year, month })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reagir a year/month
+  }, [year, month])
 
   async function runImport() {
     setImportLoading(true)
@@ -620,6 +640,7 @@ function App() {
           setCurrentUser({ id: data.id, nome: data.nome, email: data.email, employee_number: emp })
           if (emp) {
             setEmployeeNumber(emp)
+            setEmployeeInput(emp)
             setYear(currentYear)
             setMonth(currentMonth)
             loadShifts({ employeeNumber: emp, year: currentYear, month: currentMonth })
@@ -679,6 +700,7 @@ function App() {
       setCurrentUser({ id: me.id, nome: me.nome, email: me.email, employee_number: emp })
       if (emp) {
         setEmployeeNumber(emp)
+        setEmployeeInput(emp)
         setYear(currentYear)
         setMonth(currentMonth)
         await loadShifts({ employeeNumber: emp, year: currentYear, month: currentMonth })
@@ -704,6 +726,7 @@ function App() {
     setDirectTargets([])
     setDirectQuery('')
     setDirectResults([])
+    setEmployeeScaleResults([])
     setSameDayTypes([])
     setOtherDaysReceiveOnOfferDate([])
     setOtherDaysAvailabilityRows([{ date: '', types: [] }])
@@ -1159,6 +1182,51 @@ function App() {
     }
   }
 
+  async function fetchUsersSearch(query: string): Promise<UserSearchResult[]> {
+    const t = query.trim()
+    if (t.length < 2) return []
+    try {
+      const res = await apiFetch(`${API_BASE}/users/search?q=${encodeURIComponent(t)}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!res.ok) return []
+      return (await res.json()) as UserSearchResult[]
+    } catch {
+      return []
+    }
+  }
+
+  function handleEmployeeInputChange(raw: string) {
+    setEmployeeInput(raw)
+    const t = raw.trim()
+    if (!t) {
+      setEmployeeNumber('')
+      setEmployeeScaleResults([])
+      return
+    }
+    const digitsOnly = t.replace(/\s/g, '')
+    if (/^\d+$/.test(digitsOnly)) {
+      setEmployeeNumber(digitsOnly)
+      setEmployeeScaleResults([])
+      return
+    }
+    setEmployeeNumber('')
+    void (async () => {
+      const seq = ++employeeSearchSeqRef.current
+      const data = await fetchUsersSearch(raw)
+      if (seq !== employeeSearchSeqRef.current) return
+      setEmployeeScaleResults(data)
+    })()
+  }
+
+  function pickEmployeeForScale(user: UserSearchResult) {
+    const emp = String(user.employee_number ?? '').trim()
+    setEmployeeNumber(emp)
+    setEmployeeInput(`${user.nome} (${emp})`)
+    setEmployeeScaleResults([])
+    void loadShifts({ employeeNumber: emp, year, month })
+  }
+
   async function searchDirectUsers(query: string) {
     setDirectQuery(query)
     setDirectResults([])
@@ -1166,13 +1234,7 @@ function App() {
       return
     }
     try {
-      const res = await apiFetch(`${API_BASE}/users/search?q=${encodeURIComponent(query.trim())}`, {
-        headers: getAuthHeaders(),
-      })
-      if (!res.ok) {
-        return
-      }
-      const data: UserSearchResult[] = await res.json()
+      const data = await fetchUsersSearch(query)
       setDirectResults(data.filter((u) => !directTargets.some((t) => t.id === u.id)))
     } catch {
       // silêncio: autocomplete é best-effort
@@ -1274,8 +1336,8 @@ function App() {
           ) : (
             <form className="login-form" onSubmit={doLogin}>
               <p className="login-bar-hint">
-                Inicie sessão com <strong>email</strong> e <strong>palavra-passe</strong>. O campo «Nº funcionário» abaixo
-                serve só para carregar a escala (não substitui o login).
+                Inicie sessão com <strong>email</strong> e <strong>palavra-passe</strong>. O campo «Nº / nome» abaixo serve
+                só para carregar a escala (com sessão pode pesquisar por nome; não substitui o login).
               </p>
               <label className="control-group">
                 <span>Email</span>
@@ -1308,18 +1370,35 @@ function App() {
         </div>
         <h1>Escala pessoal</h1>
         <p className="scale-subtitle">
-          Número de funcionário, mês e ano. Use as setas para mudar o mês.
+          N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. Ao mudar o mês com as setas, a escala carrega
+          automaticamente; use «Carregar escala» para atualizar o mesmo mês ou após alterar o funcionário.
         </p>
 
         <div className="scale-controls">
-          <label className="control-group">
-            <span>Nº funcionário</span>
+          <label className="control-group employee-scale-field">
+            <span>Nº funcionário / nome</span>
             <input
               type="text"
-              value={employeeNumber}
-              onChange={(e) => setEmployeeNumber(e.target.value)}
-              placeholder="ex: 405541"
+              value={employeeInput}
+              onChange={(e) => handleEmployeeInputChange(e.target.value)}
+              placeholder={
+                currentUser
+                  ? 'Ex.: 405541 ou escreva o nome (ex.: Rui)…'
+                  : 'Nº de funcionário (inicie sessão para pesquisar por nome)'
+              }
+              autoComplete="off"
             />
+            {employeeScaleResults.length > 0 && (
+              <ul className="direct-search-results employee-scale-search-results" role="listbox">
+                {employeeScaleResults.map((u) => (
+                  <li key={u.id} role="presentation">
+                    <button type="button" onClick={() => pickEmployeeForScale(u)}>
+                      {u.nome} ({u.employee_number})
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </label>
           <div className="month-nav">
             <button type="button" onClick={prevMonth} aria-label="Mês anterior">
@@ -1394,9 +1473,11 @@ function App() {
             </>
           )}
         </div>
-        <p className="scale-subtitle" style={{ marginTop: '0.5rem', padding: '0.35rem 0.5rem', background: 'var(--code-bg)', borderRadius: 6, fontSize: '0.8rem' }}>
-          <strong>API:</strong> {API_BASE}
-        </p>
+        {SHOW_IMPORT_BUTTON && (
+          <p className="scale-api-line">
+            <strong>API (dev):</strong> {API_BASE}
+          </p>
+        )}
       </header>
 
       {clearSchedulesMessage && (
@@ -1551,19 +1632,22 @@ function App() {
               )
             })}
           </div>
-          <div className="calendar-legend">
-            <span><em>Fundo claro</em> Rotação normal</span>
-            <span><em>Cinzento claro</em> Troca NAV</span>
-            <span><em>Cinzento escuro</em> Troca serviço</span>
-            <span><em>Vermelho</em> BHT</span>
-            <span><em>Amarelo</em> TS</span>
-            <span><em>Rosa</em> Mudança de Funções</span>
-            <span><em>Verde</em> Outros</span>
-            <span className="legend-flag">⚠ Turno trocado, escala ainda não atualizada</span>
-            <span>
-              · Clique num turno para {editScaleMode && viewingOwnScale ? 'editar' : 'ver opções de troca'}
-            </span>
-          </div>
+          <details className="calendar-legend-details">
+            <summary className="calendar-legend-summary">Legenda — clique para ver</summary>
+            <div className="calendar-legend">
+              <span><em>Fundo claro</em> Rotação normal</span>
+              <span><em>Cinzento claro</em> Troca NAV</span>
+              <span><em>Cinzento escuro</em> Troca serviço</span>
+              <span><em>Vermelho</em> BHT</span>
+              <span><em>Amarelo</em> TS</span>
+              <span><em>Rosa</em> Mudança de Funções</span>
+              <span><em>Verde</em> Outros</span>
+              <span className="legend-flag">⚠ Turno trocado, escala ainda não atualizada</span>
+              <span>
+                · Clique num turno para {editScaleMode && viewingOwnScale ? 'editar' : 'ver opções de troca'}
+              </span>
+            </div>
+          </details>
         </div>
       )}
 

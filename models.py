@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint, Boolean
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint, Boolean, Text
 from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
@@ -209,9 +209,16 @@ class SwapNotification(Base):
     read_at = Column(DateTime, nullable=True)
     notification_kind = Column(String, default="can_accept", nullable=False)  # can_accept | request_fulfilled
     rejected_by_name = Column(String, nullable=True)
+    # Troca «outros dias»: um aviso por turno concreto do aceitante que satisfaz o pedido
+    accepter_shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True, index=True)
+    # Pacote (várias datas): JSON array de shift ids do aceitante, ordenados por data
+    package_accepter_shift_ids = Column(Text, nullable=True)
+    # Mensagem fixa (ex.: resumo após aceitar troca em pacote); notification_kind = swap_accepted_summary
+    body_text = Column(Text, nullable=True)
 
     user = relationship("User", backref="swap_notifications")
     swap_request = relationship("SwapRequest", backref="notifications")
+    accepter_shift = relationship("Shift", foreign_keys=[accepter_shift_id])
 
 
 class SwapActionHistory(Base):
@@ -232,6 +239,12 @@ class SwapActionHistory(Base):
 
     offered_shift_code = Column(String, nullable=False, index=True)
     offered_shift_date = Column(Date, nullable=False, index=True)
+    # Turno que o destinatário cedeu (antes da troca), p.ex. DC no mesmo dia que o M oferecido.
+    accepter_shift_code = Column(String, nullable=True, index=True)
+    # Pacote multi-perna (JSON): [{"requester_code","requester_date","accepter_code","accepter_date"}, ...]
+    package_legs_json = Column(Text, nullable=True)
+    # True se o pedido era troca direta (havia SwapDirectTarget) no momento da ação.
+    direct_swap = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, nullable=False, index=True)
 

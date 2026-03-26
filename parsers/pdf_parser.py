@@ -268,6 +268,52 @@ def _process_page_with_tables(page, year, month, shifts):
             })
 
 
+def detect_schedule_month_year_from_pdf(pdf_path: str) -> tuple[int, int] | None:
+    """
+    Lê o texto da 1.ª página e tenta identificar mês + ano (cabeçalho típico «ABRIL 2026»).
+    Usado para validar o nome do ficheiro (Equipa_ano_mês.pdf) contra o conteúdo real.
+    Se o PDF for só imagem ou sem texto, devolve None (importação segue só com o nome).
+    """
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            if not pdf.pages:
+                return None
+            text_raw = pdf.pages[0].extract_text() or ""
+    except Exception:
+        return None
+    if not text_raw.strip():
+        return None
+    t = _normalize_text_for_match(text_raw)
+    # Ordem: "marco" cobre MARÇO/MARCO após normalização
+    month_order = [
+        ("janeiro", 1),
+        ("fevereiro", 2),
+        ("marco", 3),
+        ("abril", 4),
+        ("maio", 5),
+        ("junho", 6),
+        ("julho", 7),
+        ("agosto", 8),
+        ("setembro", 9),
+        ("outubro", 10),
+        ("novembro", 11),
+        ("dezembro", 12),
+    ]
+    earliest: int | None = None
+    best_month: int | None = None
+    for name, num in month_order:
+        pos = t.find(name)
+        if pos != -1 and (earliest is None or pos < earliest):
+            earliest = pos
+            best_month = num
+    if best_month is None:
+        return None
+    m = re.search(r"20\d{2}", text_raw)
+    if not m:
+        return None
+    return int(m.group()), best_month
+
+
 def parse_pdf(pdf_path, year, month):
     """
     Lê o PDF da escala (todas as páginas) e devolve uma lista de dicts com:

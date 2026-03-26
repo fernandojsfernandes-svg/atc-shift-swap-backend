@@ -1,10 +1,12 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from security import hash_password
 from database import get_db
 from models import User, Shift, ShiftType, MonthlySchedule, Team, SwapHistory
-from parsers.pdf_parser import parse_pdf
+from parsers.pdf_parser import detect_schedule_month_year_from_pdf, parse_pdf
 
 router = APIRouter(
     prefix="/import",
@@ -25,6 +27,60 @@ PDF_FOLDERS = [PDF_FOLDER_ATUAL, PDF_FOLDER_SEGUINTE]
 
 # Equipas esperadas (5 turnos A–E). Se após o import não forem 5, é devolvido um aviso.
 EXPECTED_TEAMS = {"A", "B", "C", "D", "E"}
+
+# Frase obrigatória no body para POST /clear-schedules (evita apagar por engano).
+CLEAR_SCHEDULES_CONFIRM_PHRASE = "APAGAR_TODAS_AS_ESCALAS"
+# Opcional: definir CLEAR_SCHEDULES_SECRET no ambiente e enviar header X-Clear-Schedules-Secret.
+CLEAR_SCHEDULES_SECRET_ENV = "CLEAR_SCHEDULES_SECRET"
+
+
+class ClearSchedulesBody(BaseModel):
+    confirm: str = Field(
+        ...,
+        description=f'Deve ser exatamente: {CLEAR_SCHEDULES_CONFIRM_PHRASE}',
+    )
+
+
+def _clear_all_schedules_and_swap_data(db: Session) -> dict[str, int]:
+    """
+    Apaga todos os turnos (shifts), escalas mensais (monthly_schedules) e dados de trocas
+    que dependem deles. Utilizadores, equipas e tipos de turno mantêm-se.
+    Ordem respeita FKs (SQLite/Postgres).
+    """
+    counts: dict[str, int] = {}
+
+    def count_table(name: str) -> int:
+        r = db.execute(text(f"SELECT COUNT(*) FROM {name}"))
+        return int(r.scalar() or 0)
+
+    before = {
+        "monthly_schedules": count_table("monthly_schedules"),
+        "shifts": count_table("shifts"),
+    }
+
+    # Dependências primeiro (swap_* e ciclos referem shifts / swap_requests)
+    stmts = [
+        "DELETE FROM swap_notifications",
+        "DELETE FROM swap_action_dismissals",
+        "DELETE FROM swap_action_history",
+        "DELETE FROM swap_history",
+        "DELETE FROM swap_preferences",
+        "DELETE FROM swap_wanted_options",
+        "DELETE FROM swap_direct_targets",
+        "DELETE FROM cycle_swaps",
+        "DELETE FROM cycle_confirmations",
+        "DELETE FROM cycle_proposals",
+        "DELETE FROM swap_requests",
+        "DELETE FROM shifts",
+        "DELETE FROM monthly_schedules",
+    ]
+    for sql in stmts:
+        db.execute(text(sql))
+    db.commit()
+
+    counts["monthly_schedules_removed"] = before["monthly_schedules"]
+    counts["shifts_removed"] = before["shifts"]
+    return counts
 
 # Códigos de baixa prioridade para merge entre equipas no mesmo dia.
 # Ex.: mE (mudança de equipa) pode aparecer numa equipa enquanto noutra existe o turno real.
@@ -116,6 +172,7 @@ def import_schedules(db: Session = Depends(get_db)):
     """
     teams_processed = set()
     schedules_touched: set[tuple[int, int, int]] = set()  # (team_id, year, month)
+    skipped_files: list[dict] = []
 
     print("Import: pedido recebido, a carregar cache (BD)...", flush=True)
     # Cache em memória para evitar milhares de queries à BD (acelera muito)
@@ -136,10 +193,7 @@ def import_schedules(db: Session = Depends(get_db)):
             if not os.path.exists(folder):
                 continue
 
-            for file in os.listdir(folder):
-                if not file.endswith(".pdf"):
-                    continue
-
+            for file in sorted(f for f in os.listdir(folder) if f.endswith(".pdf")):
                 name = file.replace(".pdf", "")
                 parts = name.split("_")
 
@@ -165,6 +219,28 @@ def import_schedules(db: Session = Depends(get_db)):
                     teams_by_name[team_code] = team
 
                 pdf_path = os.path.join(folder, file)
+                detected = detect_schedule_month_year_from_pdf(pdf_path)
+                if detected is not None:
+                    det_year, det_month = detected
+                    if det_year != year or det_month != month:
+                        msg = (
+                            f"Nome do ficheiro indica {year}-{month:02d}, mas no PDF lê-se "
+                            f"{det_year}-{det_month:02d}. Corrija o nome (ex.: {team_code}_{det_year}_{det_month}.pdf) "
+                            "ou coloque o PDF certo na pasta."
+                        )
+                        print(f"Import: SKIP {file} — {msg}", flush=True)
+                        skipped_files.append(
+                            {
+                                "file": file,
+                                "folder": folder,
+                                "filename_year": year,
+                                "filename_month": month,
+                                "pdf_year": det_year,
+                                "pdf_month": det_month,
+                                "message": msg,
+                            }
+                        )
+                        continue
                 print(f"Import: a processar {file} ...", flush=True)
                 shifts = parse_pdf(pdf_path, year, month)
                 print(f"Import: {file} -> {len(shifts)} turnos (a gravar)...", flush=True)
@@ -291,7 +367,49 @@ def import_schedules(db: Session = Depends(get_db)):
             "schedules_count": len(schedules_touched),
             "schedules_processed": schedules_list,
             "warning": warning,
+            "skipped_files": skipped_files,
         }
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/clear-schedules")
+def clear_all_schedules(
+    body: ClearSchedulesBody,
+    db: Session = Depends(get_db),
+    x_clear_schedules_secret: str | None = Header(None, alias="X-Clear-Schedules-Secret"),
+):
+    """
+    Remove **todas** as escalas importadas (`shifts` + `monthly_schedules`) e **todos** os dados
+    de trocas/notificações/histórico ligados a turnos. Utilizadores e equipas não são apagados.
+
+    - `confirm` no JSON deve ser exatamente a frase configurada em `CLEAR_SCHEDULES_CONFIRM_PHRASE`.
+    - Se existir variável de ambiente `CLEAR_SCHEDULES_SECRET`, o mesmo valor deve ir no header
+      `X-Clear-Schedules-Secret`.
+    """
+    secret = os.environ.get(CLEAR_SCHEDULES_SECRET_ENV, "").strip()
+    if secret and (x_clear_schedules_secret or "").strip() != secret:
+        raise HTTPException(
+            status_code=403,
+            detail="Operação protegida: defina o header X-Clear-Schedules-Secret ou contacte o administrador.",
+        )
+
+    if body.confirm.strip() != CLEAR_SCHEDULES_CONFIRM_PHRASE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'Campo "confirm" deve ser exatamente: {CLEAR_SCHEDULES_CONFIRM_PHRASE!r} '
+                "(respeite maiúsculas e underscores)."
+            ),
+        )
+
+    try:
+        stats = _clear_all_schedules_and_swap_data(db)
+        return {
+            "message": "Todas as escalas e dados de trocas associados foram apagados. Pode fazer um import limpo.",
+            **stats,
+        }
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,132 +1,169 @@
-# Deploy online – Passo a passo
+# Passo a passo: beta online (Render + Vercel)
 
-Seguir por ordem. Quando disser "anota o URL", guarda num sítio (bloco de notas) para usar mais tarde.
-
----
-
-## Fase 0 – Ter o código no GitHub
-
-Neste projeto (Opção A), o repositório tem **backend na raiz** (main.py, database.py, etc.) e a pasta **`frontend/frontend`** com o Vite (package.json, src, etc.). Ou seja: na raiz está o backend; o frontend está em `frontend/frontend/`.
-
-Se já tiveres o frontend no mesmo repo (como no atc-shift-swap-backend), podes saltar para a **Fase 1**. Caso contrário:
-
-1. Cria um repositório no [GitHub](https://github.com) e faz push do código (backend + pasta frontend).
-2. Confirma no GitHub que na raiz aparecem ficheiros como `main.py` e a pasta `frontend` (e dentro dela `frontend/package.json`).
+Guia detalhado para quem nunca usou Render/Vercel. Reserva **~1–2 h** na primeira vez (esperas de deploy incluídos).
 
 ---
 
-## Fase 1 – Render (backend + base de dados)
+## Fase A — Código no Git
 
-### Passo 1.1 – Criar conta e base de dados
+1. Abre uma consola na pasta do projeto (a que tem `backend_min` ou a raiz do repo).
+2. Confirma o estado:
+   ```bash
+   git status
+   ```
+3. Se houver alterações por commitar:
+   ```bash
+   git add .
+   git commit -m "Preparar deploy beta"
+   git push
+   ```
+4. Se ainda **não** tens repositório remoto: cria um repositório vazio no **GitHub** → segue as instruções “push an existing repository”.
 
-4. Abre [https://render.com](https://render.com) e faz login (pode ser com **GitHub**).
-5. No dashboard, clica em **New +** e escolhe **PostgreSQL**.
-6. Preenche:
-   - **Name:** `parser-escalas-db` (ou outro nome).
-   - **Region:** escolhe a mais próxima (ex.: Frankfurt).
-   - **Plan:** **Free**.
-7. Clica **Create Database**. Espera até o estado ficar **Available** (pode levar 1–2 minutos).
-8. Clica no nome da base de dados que criaste. Na secção **Connections**:
-   - Copia o **Internal Database URL** (começa por `postgresql://`).
-   - **Anota este URL** (vais colá-lo no Passo 1.3). Guarda num sítio seguro; contém a palavra-passe.
-
-### Passo 1.2 – Criar o serviço da API
-
-9. No dashboard do Render, clica de novo em **New +** e escolhe **Web Service**.
-10. Se te pedir para ligar o GitHub, autoriza e escolhe a conta/repositório onde está o projeto.
-11. Escolhe o **repositório** do projeto (ex.: `atc-shift-swap-backend`).
-12. Preenche:
-    - **Name:** `parser-escalas-api` (ou outro nome; será parte do URL).
-    - **Region:** a mesma que a base de dados.
-    - **Branch:** `main` (ou a branch que usas).
-    - **Root Directory:** deixa **em branco** (a raiz do repositório já é o backend – o `main.py` está na raiz).
-    - **Runtime:** **Python 3**.
-    - **Build Command:**  
-      `pip install -r requirements.txt`
-    - **Start Command:**  
-      `uvicorn main:app --host 0.0.0.0 --port $PORT`
-13. **Ainda não cliques em Create Web Service.** Primeiro vamos pôr as variáveis de ambiente.
-
-### Passo 1.3 – Variáveis de ambiente no Render
-
-14. Na mesma página, desce até **Environment** (ou **Environment Variables**).
-15. Clica **Add Environment Variable** e adiciona **uma de cada vez**:
-
-    | Key             | Value |
-    |-----------------|--------|
-    | `DATABASE_URL`  | Cola aqui o **Internal Database URL** que copiaste no Passo 1.1 (o que começa por `postgresql://`). |
-    | `SECRET_KEY`    | Uma frase longa e aleatória. Ex.: abre [https://randomkeygen.com/](https://randomkeygen.com/) e copia uma "CodeIgniter Encryption Keys" ou escreve 40+ caracteres à sorte. |
-    | `FRONTEND_URL`  | Por agora escreve **`https://placeholder.vercel.app`** (só para não deixar vazio; vamos trocar no Passo 2.4). |
-
-16. Clica **Create Web Service**. O Render vai fazer o build e o deploy (pode demorar 2–5 minutos).
-17. Quando terminar, no topo da página do serviço aparece o **URL** (ex.: `https://parser-escalas-api.onrender.com`). **Anota este URL** – é o URL da tua API.
-
-### Passo 1.4 – Testar a API
-
-18. Abre no browser: **`https://TEU-URL.onrender.com/docs`** (substitui pelo URL que anotaste). Deves ver a documentação Swagger da API. Se der erro, espera mais um pouco (o servidor free às vezes demora a acordar).
+**Checkpoint:** no GitHub vês os ficheiros (`main.py`, `frontend/frontend/`, etc.).
 
 ---
 
-## Fase 2 – Vercel (frontend)
+## Fase B — Conta Render e base PostgreSQL
 
-### Passo 2.1 – Criar projeto na Vercel
+1. Vai a https://render.com → regista-te ou inicia sessão.
+2. No dashboard: botão **New +** → **PostgreSQL**.
+3. Preenche:
+   - **Name:** ex. `atc-escalas-db`
+   - **Region:** escolhe a mais próxima (ex. Frankfurt).
+   - **PostgreSQL Version:** a que o Render sugerir (15+).
+   - **Plan:** o gratuito ou pago conforme o teu caso.
+4. Cria a base (**Create Database**).
+5. Quando estiver **Available**, abre a base → secção **Connections**.
+6. Copia **Internal Database URL** (começa por `postgresql://` ou `postgres://`).  
+   **Guarda** num bloco de notas — é o `DATABASE_URL`.
 
-19. Abre [https://vercel.com](https://vercel.com) e faz login com **GitHub**.
-20. Clica **Add New…** → **Project**.
-21. Importa o **mesmo repositório** que usaste no Render (ex.: `atc-shift-swap-backend`). Se não aparecer, clica em **Configure GitHub** e autoriza a Vercel a ver os repositórios.
-22. Depois de escolher o repo, na página de configuração do projeto:
-    - **Project Name:** pode deixar o que vem ou mudar.
-    - **Root Directory:** clica em **Edit** e escreve **`frontend/frontend`** (pasta onde está o `package.json` do Vite). No teu repo a estrutura é: raiz = backend, `frontend/frontend/package.json` = frontend.
-    - **Framework Preset:** deve detetar **Vite**. Se não, escolhe **Vite**.
-    - **Build Command:** deixa `npm run build`.
-    - **Output Directory:** deixa `dist`.
-
-### Passo 2.2 – Variável da API no frontend
-
-23. Na mesma página, abre a secção **Environment Variables**.
-24. **Name:** `VITE_API_URL`  
-    **Value:** o URL da API do Render **sem barra no fim** (ex.: `https://parser-escalas-api.onrender.com`).  
-    **Environment:** marca **Production** (e se quiseres também Preview).
-25. Clica **Deploy**. A Vercel faz o build e o deploy (1–3 minutos).
-26. No fim, aparece o URL do teu site (ex.: `https://parser-escalas-xxx.vercel.app`). **Anota este URL** – é o teu frontend.
-
-### Passo 2.3 – Abrir o site
-
-27. Abre no browser o URL que anotaste (ex.: `https://parser-escalas-xxx.vercel.app`). Deves ver a aplicação das escalas.  
-28. Se ao carregar escalas der erro de rede ou CORS: falta ligar o frontend ao backend no Render (Passo 2.4).
-
-### Passo 2.4 – Ligar o frontend ao backend (CORS)
-
-29. Volta ao [Render](https://render.com) → **Dashboard** → clica no teu **Web Service** (a API).
-30. Abre o separador **Environment** (menu lateral).
-31. Encontra a variável **`FRONTEND_URL`** e clica em **Edit** (ou **Add** se não existir).
-32. Põe o **URL exato do frontend na Vercel**, **sem barra no fim** (ex.: `https://parser-escalas-xxx.vercel.app`). Guarda.
-33. O Render faz redeploy sozinho. Espera 1–2 minutos e abre de novo o site na Vercel; tenta carregar a escala. Deve passar a funcionar.
+**Checkpoint:** tens um URL longo copiado (não partilhes publicamente).
 
 ---
 
-## Fase 3 – Verificar
+## Fase C — Backend (Web Service) no Render
 
-34. **Frontend (Vercel):** abres o URL do site e vês a interface.
-35. **Carregar escala:** escolhes número de funcionário, mês/ano e carregas em "Carregar escala". Se a base de dados estiver vazia, pode dar "User not found" – é esperado até haver dados (import em produção é outro passo).
-36. **API (Render):** `https://TEU-API.onrender.com/docs` continua a abrir o Swagger.
+1. **New +** → **Web Service** (não “Static Site”).
+2. **Connect** o repositório GitHub e autoriza o Render se pedir.
+3. Escolhe o **repositório** e o **branch** (geralmente `main`).
+4. Preenche o formulário:
+
+| Campo | Valor |
+|--------|--------|
+| **Name** | ex. `atc-shift-swap-api` |
+| **Region** | Igual ou próxima da base de dados. |
+| **Root Directory** | Se no GitHub a raiz **já é** `backend_min` (com `main.py` dentro), deixa **vazio**. Se o repo tiver pasta `backend_min/` dentro de outra raiz, escreve: `backend_min` |
+| **Runtime** | **Python 3** |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+
+5. Escolhe o **plano** (Free pode “dormir” após inatividade — para beta pode servir).
+6. **Advanced** → **Add Environment Variable** (podes adicionar já ou no passo seguinte):
+
+| Key | Value |
+|-----|--------|
+| `DATABASE_URL` | Cola o **Internal Database URL** da Fase B (inteiro). |
+| `SECRET_KEY` | Uma frase longa aleatória (ex. 40+ caracteres). Podes gerar: PowerShell `[guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()` |
+| `PYTHON_VERSION` | `3.11.0` |
+
+7. **Create Web Service** — o primeiro deploy demora vários minutos.
+
+**Erro comum:** “Build failed” → verifica **Root Directory** (tem de ser a pasta onde está `requirements.txt`).
+
+**Checkpoint:** nos **Logs** vês algo como `Uvicorn running` e `Application startup complete`.
 
 ---
 
-## Resumo dos URLs e variáveis
+## Fase D — URL da API e teste
 
-| Onde anotar | O quê |
-|-------------|--------|
-| Render → PostgreSQL → Connections | **Internal Database URL** → usar em `DATABASE_URL` |
-| Render → Web Service → topo da página | **URL da API** (ex.: `https://xxx.onrender.com`) → usar em `VITE_API_URL` na Vercel |
-| Vercel → Project → Domains | **URL do site** (ex.: `https://xxx.vercel.app`) → usar em `FRONTEND_URL` no Render |
+1. No topo da página do serviço vês o URL: `https://XXXX.onrender.com`
+2. Abre no browser: `https://XXXX.onrender.com/` → deve aparecer JSON tipo `{"message":"ATC Shift Swap API",...}`
+3. Abre `https://XXXX.onrender.com/docs` → Swagger.
+
+**Checkpoint:** `/docs` abre.
 
 ---
 
-## Problemas comuns
+## Fase E — Disco PDF (quando quiseres import no servidor)
 
-- **"Failed to fetch" / CORS:** confirma que no Render tens `FRONTEND_URL` exatamente igual ao URL da Vercel (com `https://`, sem `/` no fim).
-- **"User not found" ao carregar escala:** a base de dados em produção está vazia. O botão "Importar escalas" no site não consegue ler PDFs do teu PC; para ter dados em produção precisas de importar de outra forma (ver secção 5 do `DEPLOY.md`).
-- **API demora muito na primeira vez:** no plano free o Render adormece o serviço; o primeiro pedido após uns minutos pode demorar 30–60 s.
+> Plano **Free** do Web Service **pode não ter** Persistent Disk. Se não adicionares disco, o import no servidor só funciona se conseguires noutro caminho (avançado). Para a maioria: **upgrade** ou plano que permita **Disk**.
 
-Quando tiveres estes passos feitos, a app está online. Para importar escalas em produção, vê a secção **5. Importar escalas em produção** no ficheiro `DEPLOY.md`.
+1. Web Service → **Disks** → **Add Disk**
+2. **Name:** `pdf-escalas`
+3. **Mount Path:** `/var/data/pdf_escalas`
+4. **Size:** ex. 1 GB
+5. Guarda → pode pedir **redeploy**
+6. **Environment** → confirma:
+   - `PDF_FOLDER_ATUAL` = `/var/data/pdf_escalas/atual`
+   - `PDF_FOLDER_SEGUINTE` = `/var/data/pdf_escalas/seguinte`
+7. **Shell** (se existir no plano) e executa:
+   ```sh
+   mkdir -p /var/data/pdf_escalas/atual /var/data/pdf_escalas/seguinte
+   ```
+8. Coloca os ficheiros **.pdf** nas pastas (métodos em `DEPLOY_BETA_LIMPO.md`).
+
+---
+
+## Fase F — Limpar e importar escalas
+
+Só quando os PDF já estão no servidor.
+
+1. No PC, na pasta `backend_min`:
+   ```powershell
+   .\scripts\beta-clear-and-import.ps1 -ApiBase "https://XXXX.onrender.com"
+   ```
+   Se definiste `CLEAR_SCHEDULES_SECRET` no Render, adiciona:  
+   `-ClearSchedulesSecret "o_mesmo_valor"`
+
+2. Ou no Swagger `/docs`: **Try it out** em `POST /import/clear-schedules` e depois `POST /import/schedules`.
+
+**Checkpoint:** resposta JSON com `Schedules imported` ou lista de equipas.
+
+---
+
+## Fase G — Frontend na Vercel
+
+1. https://vercel.com → **Sign up** / login (podes usar “Continue with GitHub”).
+2. **Add New** → **Project** → importa o **mesmo** repositório.
+3. **Configure Project:**
+   - **Root Directory:** `frontend/frontend` (clica **Edit** e escreve exatamente isto).
+   - **Framework Preset:** Vite (deteta sozinho muitas vezes).
+   - **Build Command:** `npm run build` (por defeito).
+   - **Output Directory:** `dist`
+4. **Environment Variables** → **Add**:
+   - **Name:** `VITE_API_URL`
+   - **Value:** `https://XXXX.onrender.com` (o URL da API **sem** barra no fim)
+5. **Deploy**
+
+**Checkpoint:** a Vercel dá um URL tipo `https://yyy.vercel.app` — abre e testa a app.
+
+---
+
+## Fase H — CORS (ligar frontend à API)
+
+1. Render → Web Service → **Environment**
+2. Adiciona ou edita:
+   - **FRONTEND_URL** = `https://yyy.vercel.app` (URL **exato** do passo G, `https://`, **sem** `/` no fim)
+3. **Save** → espera redeploy automático ou **Manual Deploy**
+
+**Checkpoint:** no site Vercel, login e pedidos à API já não dão erro de CORS no consola do browser (F12 → Network).
+
+---
+
+## Se algo falhar
+
+| Sintoma | Onde olhar |
+|---------|------------|
+| Build falha no Render | Logs do build; **Root Directory**; `requirements.txt` |
+| 502 / serviço a dormir (Free) | Primeiro pedido após minutos parado pode demorar |
+| CORS no browser | `FRONTEND_URL` exatamente igual ao site Vercel; HTTPS |
+| Import sem PDF | Disco montado, pastas criadas, PDF com nomes `A_2026_3.pdf` etc. |
+| Login falha | Utilizadores criados pelo import; `SECRET_KEY` não mudar entre deploys se já há tokens |
+
+---
+
+## Ordem mínima sem disco (só API a responder)
+
+A + B + C + D — já tens API online. Disco + import (E + F) quando tiveres PDF no servidor. G + H quando tiveres frontend.
+
+Documentos relacionados: `CHECKLIST_DEPLOY.md`, `DEPLOY_BETA_LIMPO.md`.

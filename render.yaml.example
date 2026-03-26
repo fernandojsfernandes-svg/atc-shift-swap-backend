@@ -1,0 +1,27 @@
+# Blueprint de exemplo para Render.com
+# Copiar para render.yaml na raiz do repositório (ou importar no painel) e ajustar o nome do serviço / plano.
+# Documentação: https://render.com/docs/blueprint-spec
+#
+# O disco monta-se em /var/data/pdf_escalas — alinhar com PDF_FOLDER_ATUAL e PDF_FOLDER_SEGUINTE.
+
+services:
+  - type: web
+    name: atc-shift-swap-api
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Raiz do código se o Git tiver monorepo (descomentar e ajustar):
+    # rootDir: backend_min
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      # Definir no painel (ou aqui com sync: false + secrets): DATABASE_URL, SECRET_KEY, FRONTEND_URL
+      - key: PDF_FOLDER_ATUAL
+        value: /var/data/pdf_escalas/atual
+      - key: PDF_FOLDER_SEGUINTE
+        value: /var/data/pdf_escalas/seguinte
+    disk:
+      name: pdf-escalas
+      mountPath: /var/data/pdf_escalas
+      sizeGB: 1
