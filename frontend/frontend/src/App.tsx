@@ -175,13 +175,26 @@ async function apiFetch(
   throw lastError
 }
 
-// Em produção: definir VITE_API_URL no build (ex.: https://teu-backend.onrender.com)
-const API_BASE =
-  typeof import.meta.env !== 'undefined' && import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-    : typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:8000`
-      : 'http://127.0.0.1:8000'
+/** Backend em produção (Render) quando `VITE_API_URL` não está no build — evita POST para `*.vercel.app:8000` (405). */
+const DEFAULT_PROD_API = 'https://atc-shift-swap-backend.onrender.com'
+
+function resolveApiBase(): string {
+  const fromEnv = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
+  if (fromEnv) return fromEnv
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000'
+  const { protocol, hostname } = window.location
+  const isLocalDevHost =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  if (isLocalDevHost) return `${protocol}//${hostname}:8000`
+  // Vercel / outro static host: o mesmo hostname na porta 8000 não é a FastAPI → 405 em POST /users/login
+  if (import.meta.env.PROD) return DEFAULT_PROD_API
+  return `${protocol}//${hostname}:8000`
+}
+
+const API_BASE = resolveApiBase()
 
 // Só mostrar "Importar escalas" em local: em produção (Render) não há PDFs no servidor
 const SHOW_IMPORT_BUTTON = API_BASE.includes('localhost') || API_BASE.includes('127.0.0.1')
