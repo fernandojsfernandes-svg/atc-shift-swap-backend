@@ -178,8 +178,26 @@ async function apiFetch(
 /** Backend em produção (Render) quando `VITE_API_URL` não está no build — evita POST para `*.vercel.app:8000` (405). */
 const DEFAULT_PROD_API = 'https://atc-shift-swap-backend.onrender.com'
 
+/**
+ * Valor de VITE_API_URL no painel deve ser só o URL (ex.: https://api.onrender.com).
+ * Se alguém colar "VITE_API_URL = https://..." no campo Valor, o fetch torna-se relativo ao Vercel → 405.
+ */
+function parseApiUrlFromEnv(raw: string | undefined): string | undefined {
+  if (raw == null) return undefined
+  let s = String(raw).trim()
+  if (!s) return undefined
+  const start = s.search(/https?:/i)
+  if (start >= 0) s = s.slice(start)
+  s = s.replace(/^https:\/(?!\/)/i, 'https://').replace(/^http:\/(?!\/)/i, 'http://')
+  const sp = s.search(/\s/)
+  if (sp >= 0) s = s.slice(0, sp)
+  s = s.replace(/\/$/, '')
+  if (!/^https?:\/\//i.test(s)) return undefined
+  return s
+}
+
 function resolveApiBase(): string {
-  const fromEnv = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
+  const fromEnv = parseApiUrlFromEnv(import.meta.env.VITE_API_URL)
   if (fromEnv) return fromEnv
   if (typeof window === 'undefined') return 'http://127.0.0.1:8000'
   const { protocol, hostname } = window.location
@@ -189,8 +207,15 @@ function resolveApiBase(): string {
     /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
     /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
   if (isLocalDevHost) return `${protocol}//${hostname}:8000`
-  // Vercel / outro static host: o mesmo hostname na porta 8000 não é a FastAPI → 405 em POST /users/login
-  if (import.meta.env.PROD) return DEFAULT_PROD_API
+  // Hospedagem estática: nunca usar :8000 no mesmo host (Vercel/Netlify não é a API → 405 no POST).
+  // Não depender só de import.meta.env.PROD — em alguns CI pode falhar e cair no :8000 errado.
+  if (
+    hostname.endsWith('.vercel.app') ||
+    hostname.endsWith('.netlify.app') ||
+    import.meta.env.PROD
+  ) {
+    return DEFAULT_PROD_API
+  }
   return `${protocol}//${hostname}:8000`
 }
 
