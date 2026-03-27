@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text, select
+from sqlalchemy import text, select, or_
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 from collections import Counter, defaultdict
@@ -1254,7 +1254,18 @@ def cancel_swap_request(
         raise HTTPException(status_code=403, detail="Só pode cancelar os seus próprios pedidos")
     if swap.status != SwapStatus.OPEN:
         raise HTTPException(status_code=400, detail="Só pode cancelar pedidos em aberto")
+    now = datetime.utcnow()
     swap.status = SwapStatus.REJECTED
+    # Retirar da inbox dos aceitantes os avisos «pode aceitar» (evita aceitar/recusar → "Swap already processed").
+    db.query(SwapNotification).filter(
+        SwapNotification.swap_request_id == swap.id,
+        SwapNotification.user_id != swap.requester_id,
+        SwapNotification.read_at.is_(None),
+        or_(
+            SwapNotification.notification_kind == "can_accept",
+            SwapNotification.notification_kind.is_(None),
+        ),
+    ).update({"read_at": now}, synchronize_session=False)
     db.commit()
     return {"message": "Pedido de troca cancelado."}
 

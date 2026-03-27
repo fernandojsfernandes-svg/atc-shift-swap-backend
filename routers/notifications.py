@@ -9,6 +9,7 @@ from database import get_db
 from models import (
     SwapNotification,
     SwapRequest,
+    SwapStatus,
     Shift,
     User,
     SwapPreference,
@@ -265,7 +266,20 @@ def list_my_notifications(
     if unread_only:
         q = q.filter(SwapNotification.read_at.is_(None))
     notifications = q.limit(100).all()
-    return [_enrich_notification(db, n) for n in notifications]
+    # Não mostrar «can_accept» se o pedido já fechou (ex.: cancelado pelo proponente antes de limpar read_at).
+    out: list[dict] = []
+    for n in notifications:
+        kind = n.notification_kind or "can_accept"
+        if kind == "can_accept":
+            sw = (
+                db.query(SwapRequest)
+                .filter(SwapRequest.id == n.swap_request_id)
+                .first()
+            )
+            if not sw or sw.status != SwapStatus.OPEN:
+                continue
+        out.append(_enrich_notification(db, n))
+    return out
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationRead)
