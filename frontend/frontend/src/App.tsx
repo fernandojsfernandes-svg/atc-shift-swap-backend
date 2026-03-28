@@ -389,7 +389,13 @@ function App() {
   } | null>(null)
   const [clearSchedulesLoading, setClearSchedulesLoading] = useState(false)
   const [clearSchedulesMessage, setClearSchedulesMessage] = useState<string | null>(null)
-  const [swapPartnerToast, setSwapPartnerToast] = useState<string | null>(null)
+  /** Aviso «com quem trocou» junto à célula (coordenadas em px relativas à viewport). */
+  const [swapPartnerBubble, setSwapPartnerBubble] = useState<{
+    message: string
+    left: number
+    top: number
+    placement: 'above' | 'below'
+  } | null>(null)
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -451,10 +457,10 @@ function App() {
   }, [onDutyYear, onDutyMonth])
 
   useEffect(() => {
-    if (!swapPartnerToast) return
-    const t = setTimeout(() => setSwapPartnerToast(null), 4000)
+    if (!swapPartnerBubble) return
+    const t = setTimeout(() => setSwapPartnerBubble(null), 2000)
     return () => clearTimeout(t)
-  }, [swapPartnerToast])
+  }, [swapPartnerBubble])
 
   async function loadShifts(params?: { employeeNumber?: string; year?: number; month?: number }) {
     const empToLoad = (params?.employeeNumber ?? employeeNumber).trim()
@@ -1657,11 +1663,17 @@ function App() {
                 if (canEditCell && shift) openShiftEdit(shift)
                 else if (canOpenSwap && shift) setSelectedShift(shift)
               }
-              function showSwapPartnerMessage() {
+              function showSwapPartnerMessage(anchorEl: HTMLElement) {
                 if (!shift?.swap_partner_name) return
                 const name = shift.swap_partner_name.trim()
                 const emp = (shift.swap_partner_employee_number || '').trim()
-                setSwapPartnerToast(emp ? `Troca com ${name} (${emp})` : `Troca com ${name}`)
+                const message = emp ? `Troca com ${name} (${emp})` : `Troca com ${name}`
+                const rect = anchorEl.getBoundingClientRect()
+                const left = rect.left + rect.width / 2
+                // Pouco espaço no topo do ecrã → mostrar por baixo da célula
+                const placement: 'above' | 'below' = rect.top < 72 ? 'below' : 'above'
+                const top = placement === 'above' ? rect.top : rect.bottom
+                setSwapPartnerBubble({ message, left, top, placement })
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20)
               }
               return (
@@ -1677,23 +1689,42 @@ function App() {
                   onPointerDown={
                     showSwapPartnerLongPress && shift
                       ? (e) => {
+                          if (e.button !== 0) return
+                          const pointerId = e.pointerId
                           let tid: ReturnType<typeof setTimeout> | null = null
                           const el = e.currentTarget
+                          try {
+                            el.setPointerCapture(pointerId)
+                          } catch {
+                            /* ignore */
+                          }
                           tid = window.setTimeout(() => {
                             tid = null
                             suppressNextClickRef.current = true
-                            showSwapPartnerMessage()
-                          }, 550)
+                            try {
+                              el.releasePointerCapture(pointerId)
+                            } catch {
+                              /* ignore */
+                            }
+                            showSwapPartnerMessage(el)
+                          }, 480)
                           const cleanup = () => {
                             if (tid != null) {
                               clearTimeout(tid)
                               tid = null
                             }
+                            try {
+                              el.releasePointerCapture(pointerId)
+                            } catch {
+                              /* ignore */
+                            }
                             el.removeEventListener('pointerup', cleanup)
                             el.removeEventListener('pointercancel', cleanup)
+                            el.removeEventListener('lostpointercapture', cleanup)
                           }
                           el.addEventListener('pointerup', cleanup)
                           el.addEventListener('pointercancel', cleanup)
+                          el.addEventListener('lostpointercapture', cleanup)
                         }
                       : undefined
                   }
@@ -1702,7 +1733,7 @@ function App() {
                       ? (e) => {
                           e.preventDefault()
                           suppressNextClickRef.current = true
-                          showSwapPartnerMessage()
+                          showSwapPartnerMessage(e.currentTarget)
                         }
                       : undefined
                   }
@@ -1751,7 +1782,9 @@ function App() {
               <span><em>Fundo claro</em> Rotação normal</span>
               <span><em>Cinzento claro</em> Troca NAV</span>
               <span><em>Cinzento escuro</em> Troca serviço</span>
-              <span><em>Pressione longo</em> na troca serviço (com registo de troca aceite) para ver com quem trocou · no PC: clique direito</span>
+              <span>
+                <em>Pressione longo</em> na troca serviço (com registo de troca aceite) para ver com quem trocou — mensagem 2 s por cima do dia · no PC: clique direito
+              </span>
               <span><em>Vermelho</em> BHT</span>
               <span><em>Amarelo</em> TS</span>
               <span><em>Rosa</em> Mudança de Funções</span>
@@ -2736,9 +2769,14 @@ function App() {
           <p className="scale-empty">Nenhuma pessoa encontrada para este dia e turno.</p>
         )}
       </section>
-      {swapPartnerToast && (
-        <div className="swap-partner-toast" role="status" aria-live="polite">
-          {swapPartnerToast}
+      {swapPartnerBubble && (
+        <div
+          className={`swap-partner-toast swap-partner-toast--${swapPartnerBubble.placement}`}
+          style={{ left: swapPartnerBubble.left, top: swapPartnerBubble.top }}
+          role="status"
+          aria-live="polite"
+        >
+          {swapPartnerBubble.message}
         </div>
       )}
     </div>

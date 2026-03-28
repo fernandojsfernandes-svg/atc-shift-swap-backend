@@ -375,26 +375,34 @@
 }
 
 .calendar-cell--swap-partner-hint {
-  touch-action: manipulation;
+  /* none: o browser não rouba o gesto para scroll; ajuda o long press no telemóvel */
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .swap-partner-toast {
   position: fixed;
-  bottom: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 10000;
-  max-width: min(90vw, 22rem);
-  padding: 0.65rem 1rem;
-  background: rgba(20, 20, 22, 0.92);
+  max-width: min(calc(100vw - 16px), 20rem);
+  padding: 0.5rem 0.75rem;
+  background: rgba(20, 20, 22, 0.94);
   color: #f5f5f5;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
   border-radius: 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   text-align: center;
   pointer-events: none;
+}
+
+/* Ancorado ao centro horizontal da célula; top = bordo superior ou inferior da célula (inline) */
+.swap-partner-toast--above {
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.swap-partner-toast--below {
+  transform: translate(-50%, 8px);
 }
 
 /* Dias passados: não clicáveis, cruz fina por cima */
