@@ -13,6 +13,9 @@ type ShiftDto = {
   origin_status?: string | null
   show_troca_bht?: boolean
   show_troca_ts?: boolean
+  /** Colega com quem foi feita a troca aceite (histórico), p.ex. troca serviço */
+  swap_partner_name?: string | null
+  swap_partner_employee_number?: string | null
 }
 
 type OnDutyPerson = {
@@ -386,6 +389,7 @@ function App() {
   } | null>(null)
   const [clearSchedulesLoading, setClearSchedulesLoading] = useState(false)
   const [clearSchedulesMessage, setClearSchedulesMessage] = useState<string | null>(null)
+  const [swapPartnerToast, setSwapPartnerToast] = useState<string | null>(null)
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -399,6 +403,8 @@ function App() {
   const employeeNumberLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Evita aplicar resultados de pesquisa antigos se o utilizador continuar a escrever. */
   const employeeSearchSeqRef = useRef(0)
+  /** Após long press mostrar colega da troca, evita abrir o painel de troca no mesmo toque. */
+  const suppressNextClickRef = useRef(false)
 
   const shiftsByDate = useMemo(() => {
     const map: Record<string, ShiftDto> = {}
@@ -443,6 +449,12 @@ function App() {
       return prev
     })
   }, [onDutyYear, onDutyMonth])
+
+  useEffect(() => {
+    if (!swapPartnerToast) return
+    const t = setTimeout(() => setSwapPartnerToast(null), 4000)
+    return () => clearTimeout(t)
+  }, [swapPartnerToast])
 
   async function loadShifts(params?: { employeeNumber?: string; year?: number; month?: number }) {
     const empToLoad = (params?.employeeNumber ?? employeeNumber).trim()
@@ -1253,6 +1265,21 @@ function App() {
     void loadShifts({ employeeNumber: emp, year, month })
   }
 
+  function goToMyScale() {
+    if (!currentUser?.employee_number) return
+    const emp = String(currentUser.employee_number).trim()
+    if (!emp) return
+    if (employeeNumberLoadTimerRef.current) {
+      clearTimeout(employeeNumberLoadTimerRef.current)
+      employeeNumberLoadTimerRef.current = null
+    }
+    setEmployeeNumber(emp)
+    const nome = (currentUser.nome || '').trim()
+    setEmployeeInput(nome ? `${nome} (${emp})` : emp)
+    setEmployeeScaleResults([])
+    void loadShifts({ employeeNumber: emp, year, month })
+  }
+
   async function searchDirectUsers(query: string) {
     setDirectQuery(query)
     setDirectResults([])
@@ -1401,31 +1428,43 @@ function App() {
         </p>
 
         <div className="scale-controls">
-          <label className="control-group employee-scale-field">
-            <span>Nº funcionário / nome</span>
-            <input
-              type="text"
-              value={employeeInput}
-              onChange={(e) => handleEmployeeInputChange(e.target.value)}
-              placeholder={
-                currentUser
-                  ? 'Ex.: 405541 ou escreva o nome (ex.: Rui)…'
-                  : 'Nº de funcionário (inicie sessão para pesquisar por nome)'
-              }
-              autoComplete="off"
-            />
-            {employeeScaleResults.length > 0 && (
-              <ul className="direct-search-results employee-scale-search-results" role="listbox">
-                {employeeScaleResults.map((u) => (
-                  <li key={u.id} role="presentation">
-                    <button type="button" onClick={() => pickEmployeeForScale(u)}>
-                      {u.nome} ({u.employee_number})
-                    </button>
-                  </li>
-                ))}
-              </ul>
+          <div className="employee-scale-row">
+            <label className="control-group employee-scale-field">
+              <span>Nº funcionário / nome</span>
+              <input
+                type="text"
+                value={employeeInput}
+                onChange={(e) => handleEmployeeInputChange(e.target.value)}
+                placeholder={
+                  currentUser
+                    ? 'Ex.: 405541 ou escreva o nome (ex.: Rui)…'
+                    : 'Nº de funcionário (inicie sessão para pesquisar por nome)'
+                }
+                autoComplete="off"
+              />
+              {employeeScaleResults.length > 0 && (
+                <ul className="direct-search-results employee-scale-search-results" role="listbox">
+                  {employeeScaleResults.map((u) => (
+                    <li key={u.id} role="presentation">
+                      <button type="button" onClick={() => pickEmployeeForScale(u)}>
+                        {u.nome} ({u.employee_number})
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </label>
+            {currentUser && (
+              <button
+                type="button"
+                className="btn-my-scale"
+                onClick={goToMyScale}
+                title="Mostrar a sua escala (o seu n.º de funcionário)"
+              >
+                Minha escala
+              </button>
             )}
-          </label>
+          </div>
           <div className="month-nav">
             <button type="button" onClick={prevMonth} aria-label="Mês anterior">
               ‹
@@ -1593,6 +1632,8 @@ function App() {
               const isSplitCell = isOriginTroca || isTrocaBht || isTrocaTs
               const bottomHalfDark = true
               const splitBottomBg = (isTrocaBht || isTrocaTs) ? 'var(--shift-gray-dark)' : bg
+              const showSwapPartnerLongPress =
+                Boolean(isOriginTroca && shift?.swap_partner_name)
               const cellTitle = inconsistent
                 ? msg || 'Inconsistência'
                 : isPast && !canEditCell
@@ -1602,20 +1643,69 @@ function App() {
                     : canOpenSwap
                       ? 'Clique para opções de troca'
                       : undefined
+              const cellTitleWithPartner =
+                cellTitle && showSwapPartnerLongPress
+                  ? `${cellTitle} · Pressione longo: com quem trocou`
+                  : showSwapPartnerLongPress
+                    ? 'Pressione longo para ver com quem trocou (troca serviço)'
+                    : cellTitle
               function handleCellActivate() {
+                if (suppressNextClickRef.current) {
+                  suppressNextClickRef.current = false
+                  return
+                }
                 if (canEditCell && shift) openShiftEdit(shift)
                 else if (canOpenSwap && shift) setSelectedShift(shift)
+              }
+              function showSwapPartnerMessage() {
+                if (!shift?.swap_partner_name) return
+                const name = shift.swap_partner_name.trim()
+                const emp = (shift.swap_partner_employee_number || '').trim()
+                setSwapPartnerToast(emp ? `Troca com ${name} (${emp})` : `Troca com ${name}`)
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20)
               }
               return (
                 <div
                   key={day}
                   role={isClickable ? 'button' : undefined}
                   tabIndex={isClickable ? 0 : undefined}
-                  className={`calendar-cell ${isClickable ? 'calendar-cell--clickable' : ''} ${canEditCell ? 'calendar-cell--edit-mode' : ''} ${isPast ? 'calendar-cell--past' : ''} ${selectedShift?.id === shift?.id ? 'calendar-cell--selected' : ''} ${inconsistent ? 'calendar-cell--inconsistent' : ''} ${isSplitCell ? 'calendar-cell--split' : ''} ${(isTrocaBht || isTrocaTs) ? 'calendar-cell--split-bht' : ''} ${!isSplitCell && bucketForCalendar === 'gray_dark' ? 'calendar-cell--dark-bg' : ''} ${!isSplitCell && shift && (bucketForCalendar === 'gray_light' || (bucketForCalendar !== 'gray_dark' && bucketForCalendar !== 'gray_light')) ? 'calendar-cell--light-bg' : ''}`}
+                  className={`calendar-cell ${isClickable ? 'calendar-cell--clickable' : ''} ${canEditCell ? 'calendar-cell--edit-mode' : ''} ${isPast ? 'calendar-cell--past' : ''} ${selectedShift?.id === shift?.id ? 'calendar-cell--selected' : ''} ${inconsistent ? 'calendar-cell--inconsistent' : ''} ${isSplitCell ? 'calendar-cell--split' : ''} ${(isTrocaBht || isTrocaTs) ? 'calendar-cell--split-bht' : ''} ${showSwapPartnerLongPress ? 'calendar-cell--swap-partner-hint' : ''} ${!isSplitCell && bucketForCalendar === 'gray_dark' ? 'calendar-cell--dark-bg' : ''} ${!isSplitCell && shift && (bucketForCalendar === 'gray_light' || (bucketForCalendar !== 'gray_dark' && bucketForCalendar !== 'gray_light')) ? 'calendar-cell--light-bg' : ''}`}
                   style={!isSplitCell && bg ? { backgroundColor: bg } : undefined}
-                  title={cellTitle}
+                  title={cellTitleWithPartner}
                   onClick={isClickable ? handleCellActivate : undefined}
                   onKeyDown={isClickable ? (e) => e.key === 'Enter' && handleCellActivate() : undefined}
+                  onPointerDown={
+                    showSwapPartnerLongPress && shift
+                      ? (e) => {
+                          let tid: ReturnType<typeof setTimeout> | null = null
+                          const el = e.currentTarget
+                          tid = window.setTimeout(() => {
+                            tid = null
+                            suppressNextClickRef.current = true
+                            showSwapPartnerMessage()
+                          }, 550)
+                          const cleanup = () => {
+                            if (tid != null) {
+                              clearTimeout(tid)
+                              tid = null
+                            }
+                            el.removeEventListener('pointerup', cleanup)
+                            el.removeEventListener('pointercancel', cleanup)
+                          }
+                          el.addEventListener('pointerup', cleanup)
+                          el.addEventListener('pointercancel', cleanup)
+                        }
+                      : undefined
+                  }
+                  onContextMenu={
+                    showSwapPartnerLongPress && shift
+                      ? (e) => {
+                          e.preventDefault()
+                          suppressNextClickRef.current = true
+                          showSwapPartnerMessage()
+                        }
+                      : undefined
+                  }
                 >
                   {isSplitCell && shift ? (
                     <>
@@ -1661,6 +1751,7 @@ function App() {
               <span><em>Fundo claro</em> Rotação normal</span>
               <span><em>Cinzento claro</em> Troca NAV</span>
               <span><em>Cinzento escuro</em> Troca serviço</span>
+              <span><em>Pressione longo</em> na troca serviço (com registo de troca aceite) para ver com quem trocou · no PC: clique direito</span>
               <span><em>Vermelho</em> BHT</span>
               <span><em>Amarelo</em> TS</span>
               <span><em>Rosa</em> Mudança de Funções</span>
@@ -2645,6 +2736,11 @@ function App() {
           <p className="scale-empty">Nenhuma pessoa encontrada para este dia e turno.</p>
         )}
       </section>
+      {swapPartnerToast && (
+        <div className="swap-partner-toast" role="status" aria-live="polite">
+          {swapPartnerToast}
+        </div>
+      )}
     </div>
   )
 }

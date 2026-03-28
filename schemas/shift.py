@@ -21,6 +21,8 @@ class ShiftRead(ShiftBase):
     origin_status: str | None = None
     show_troca_bht: bool = False
     show_troca_ts: bool = False
+    swap_partner_name: str | None = None
+    swap_partner_employee_number: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Shift, User, ShiftType, Team, SwapRequest
 from models import SwapStatus
-from services.swap_display import shift_ids_in_accepted_swaps, single_shift_involved_in_accepted_swap
+from services.swap_display import (
+    shift_ids_in_accepted_swaps,
+    single_shift_involved_in_accepted_swap,
+    swap_partner_labels_for_user_shifts,
+)
 from rules.manual_shift import (
     VALID_COLOR_BUCKETS,
     VALID_ORIGIN_STATUS,
@@ -206,6 +210,7 @@ def patch_shift_manual(
     db.refresh(shift)
 
     in_swapped = single_shift_involved_in_accepted_swap(db, shift.id)
+    pl = swap_partner_labels_for_user_shifts(db, current_user.id, [shift.id]).get(shift.id, (None, None))
 
     return ShiftRead(
         id=shift.id,
@@ -219,4 +224,6 @@ def patch_shift_manual(
         origin_status=shift.origin_status,
         show_troca_bht=(shift.origin_status == "bht" and in_swapped),
         show_troca_ts=(shift.origin_status == "ts" and in_swapped),
+        swap_partner_name=pl[0],
+        swap_partner_employee_number=pl[1],
     )

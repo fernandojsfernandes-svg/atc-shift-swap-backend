@@ -29,6 +29,23 @@ from models import (
 from rules.shift_rules import is_next_day_incompatible, exceeds_max_consecutive_days
 
 
+def _shift_matches_same_day_preferences(shift: Shift, allowed_type_ids: list[int], db: Session) -> bool:
+    """
+    O pedido aceita em troca só certos tipos (SwapPreference).
+    Inclui turnos com shift_type_id igual OU codigo alinhado ao ShiftType quando shift_type_id veio NULL no import.
+    """
+    if not allowed_type_ids:
+        return True
+    if shift.shift_type_id and shift.shift_type_id in allowed_type_ids:
+        return True
+    sts = db.query(ShiftType).filter(ShiftType.id.in_(allowed_type_ids)).all()
+    allowed_codes = {(st.code or "").strip().lower() for st in sts}
+    code = (shift.codigo or "").strip().lower()
+    if code and code in allowed_codes:
+        return True
+    return False
+
+
 def _would_swap_break_rules(
     db: Session,
     offered_shift: Shift,
@@ -330,15 +347,19 @@ def notify_matching_users_same_day(db: Session, swap: SwapRequest) -> None:
 
     if prefs:
         allowed_type_ids = [p.shift_type_id for p in prefs]
-        candidate_shifts = (
+        same_day_shifts = (
             db.query(Shift)
             .filter(
                 Shift.data == date_d,
                 Shift.user_id != requester_id,
-                Shift.shift_type_id.in_(allowed_type_ids),
             )
             .all()
         )
+        candidate_shifts = [
+            sh
+            for sh in same_day_shifts
+            if _shift_matches_same_day_preferences(sh, allowed_type_ids, db)
+        ]
     else:
         candidate_shifts = (
             db.query(Shift)

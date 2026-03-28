@@ -163,6 +163,43 @@
   color: var(--text);
 }
 
+.employee-scale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  width: 100%;
+  flex: 1 1 100%;
+}
+
+.employee-scale-row .employee-scale-field {
+  position: relative;
+  flex: 0 1 50%;
+  max-width: 50%;
+  min-width: 0;
+  width: auto;
+}
+
+.btn-my-scale {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 2.5rem;
+  line-height: 1.2;
+}
+
+.btn-my-scale:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--text);
+}
+
 .employee-scale-field {
   position: relative;
   width: 100%;
@@ -335,6 +372,29 @@
 .calendar-cell--inconsistent {
   outline: 2px solid #dc2626;
   outline-offset: -1px;
+}
+
+.calendar-cell--swap-partner-hint {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.swap-partner-toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  max-width: min(90vw, 22rem);
+  padding: 0.65rem 1rem;
+  background: rgba(20, 20, 22, 0.92);
+  color: #f5f5f5;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  pointer-events: none;
 }
 
 /* Dias passados: não clicáveis, cruz fina por cima */
@@ -1217,6 +1277,23 @@
     align-items: stretch;
     gap: 0.85rem;
     margin-bottom: 1.25rem;
+  }
+
+  .employee-scale-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .employee-scale-row .employee-scale-field {
+    flex: 1 1 auto;
+    max-width: none;
+    width: 100%;
+  }
+
+  .btn-my-scale {
+    width: 100%;
+    min-height: 44px;
   }
 
   .scale-controls > .control-group {

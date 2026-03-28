@@ -16,7 +16,7 @@ def _normalize(s: str) -> str:
     n = unicodedata.normalize("NFD", s)
     return "".join(c for c in n if unicodedata.category(c) != "Mn").lower()
 from models import User, Shift, Team
-from services.swap_display import shift_ids_in_accepted_swaps
+from services.swap_display import shift_ids_in_accepted_swaps, swap_partner_labels_for_user_shifts
 from schemas.user import UserCreate, UserRead, UserPreferencesUpdate
 from schemas.shift import ShiftRead
 
@@ -177,6 +177,7 @@ def user_month_shifts(
 
     shift_ids = [s.id for s in shifts]
     swapped_ids = shift_ids_in_accepted_swaps(db, shift_ids)
+    partner_labels = swap_partner_labels_for_user_shifts(db, user.id, shift_ids)
 
     # Serializar enquanto a sessão está aberta (evita e3q8 / "not bound to a Session")
     return [
@@ -192,6 +193,8 @@ def user_month_shifts(
             origin_status=s.origin_status,
             show_troca_bht=(s.origin_status == "bht" and s.id in swapped_ids),
             show_troca_ts=(s.origin_status == "ts" and s.id in swapped_ids),
+            swap_partner_name=partner_labels.get(s.id, (None, None))[0],
+            swap_partner_employee_number=partner_labels.get(s.id, (None, None))[1],
         )
         for s in shifts
     ]
