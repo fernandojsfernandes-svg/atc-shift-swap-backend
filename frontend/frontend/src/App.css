@@ -751,6 +751,30 @@
   gap: 0.5rem;
 }
 
+/* Notificações: em telemóvel o texto e os botões não podem partilhar a mesma linha flex
+   (o texto ficava numa faixa estreitíssima, uma palavra por linha). */
+@media (max-width: 640px) {
+  .notifications-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notifications-item-body {
+    flex: none;
+    width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .notifications-can-accept-text {
+    overflow-wrap: break-word;
+  }
+
+  .notifications-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
 /* Quem está de serviço */
 
 .on-duty-section {
