@@ -1798,6 +1798,93 @@ function App() {
         </div>
       )}
 
+      <section className="on-duty-section">
+        <h2>Quem está de serviço?</h2>
+        <p className="scale-subtitle">
+          O mês e o ano começam iguais ao calendário em cima; pode alterá-los aqui para consultar outro
+          mês (se existir escala na base de dados).
+        </p>
+        <div className="on-duty-controls">
+          <label className="control-group">
+            <span>Dia</span>
+            <select
+              className="on-duty-day-select"
+              value={onDutyDayInput}
+              onChange={(e) => setOnDutyDayInput(e.target.value)}
+              aria-label="Dia do mês (1 a último dia)"
+            >
+              {Array.from({ length: onDutyMaxDay }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={String(d)}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="control-group">
+            <span>Mês</span>
+            <select
+              className="on-duty-month-select"
+              value={onDutyMonth}
+              onChange={(e) => setOnDutyMonth(Number(e.target.value))}
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="control-group">
+            <span>Ano</span>
+            <input
+              type="number"
+              className="on-duty-year-input"
+              min={2020}
+              max={2035}
+              value={onDutyYear}
+              onChange={(e) => setOnDutyYear(Math.max(2020, Math.min(2035, Number(e.target.value) || onDutyYear)))}
+            />
+          </label>
+          <label className="control-group">
+            <span>Turno</span>
+            <select
+              value={onDutyCode}
+              onChange={(e) => setOnDutyCode(e.target.value)}
+            >
+              {SHIFT_CODES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn-load btn-load--light"
+            onClick={loadOnDuty}
+            disabled={onDutyLoading}
+          >
+            {onDutyLoading ? 'A carregar...' : 'Ver quem está'}
+          </button>
+        </div>
+        {onDutyError && (
+          <div className="scale-error">Erro: {onDutyError}</div>
+        )}
+        {onDutyList.length > 0 && (
+          <ul className="on-duty-list">
+            {onDutyList.map((p) => (
+              <li key={p.employee_number}>
+                <strong>{p.nome}</strong>
+                <span> {p.employee_number}</span>
+                {p.team && <span> · {p.team}</span>}
+                <span> · {originStatusLabel(p.origin_status, p.team, p.show_troca_bht, p.show_troca_ts)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {onDutySearched && !onDutyLoading && !onDutyError && onDutyList.length === 0 && (
+          <p className="scale-empty">Nenhuma pessoa encontrada para este dia e turno.</p>
+        )}
+      </section>
+
       {shiftEditTarget && (
         <section className="swap-panel shift-edit-panel">
           <div className="swap-panel-header">
@@ -2611,89 +2698,6 @@ function App() {
           )}
         </section>
       )}
-
-      <section className="on-duty-section">
-        <h2>Quem está de serviço?</h2>
-        <p className="scale-subtitle">
-          O mês e o ano começam iguais ao calendário em cima; pode alterá-los aqui para consultar outro
-          mês (se existir escala na base de dados).
-        </p>
-        <div className="on-duty-controls">
-          <label className="control-group">
-            <span>Dia</span>
-            <input
-              type="number"
-              min={1}
-              max={onDutyMaxDay}
-              value={onDutyDayInput}
-              onChange={(e) => setOnDutyDayInput(e.target.value)}
-              placeholder="Dia"
-            />
-          </label>
-          <label className="control-group">
-            <span>Mês</span>
-            <select
-              className="on-duty-month-select"
-              value={onDutyMonth}
-              onChange={(e) => setOnDutyMonth(Number(e.target.value))}
-            >
-              {MONTH_NAMES.map((name, idx) => (
-                <option key={name} value={idx + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="control-group">
-            <span>Ano</span>
-            <input
-              type="number"
-              className="on-duty-year-input"
-              min={2020}
-              max={2035}
-              value={onDutyYear}
-              onChange={(e) => setOnDutyYear(Math.max(2020, Math.min(2035, Number(e.target.value) || onDutyYear)))}
-            />
-          </label>
-          <label className="control-group">
-            <span>Turno</span>
-            <select
-              value={onDutyCode}
-              onChange={(e) => setOnDutyCode(e.target.value)}
-            >
-              {SHIFT_CODES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={loadOnDuty}
-            disabled={onDutyLoading}
-          >
-            {onDutyLoading ? 'A carregar...' : 'Ver quem está'}
-          </button>
-        </div>
-        {onDutyError && (
-          <div className="scale-error">Erro: {onDutyError}</div>
-        )}
-        {onDutyList.length > 0 && (
-          <ul className="on-duty-list">
-            {onDutyList.map((p) => (
-              <li key={p.employee_number}>
-                <strong>{p.nome}</strong>
-                <span> {p.employee_number}</span>
-                {p.team && <span> · {p.team}</span>}
-                <span> · {originStatusLabel(p.origin_status, p.team, p.show_troca_bht, p.show_troca_ts)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {onDutySearched && !onDutyLoading && !onDutyError && onDutyList.length === 0 && (
-          <p className="scale-empty">Nenhuma pessoa encontrada para este dia e turno.</p>
-        )}
-      </section>
       {swapPartnerBubble && (
         <div
           className={`swap-partner-toast swap-partner-toast--${swapPartnerBubble.placement}`}

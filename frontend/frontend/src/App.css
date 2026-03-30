@@ -810,6 +810,10 @@
   min-width: 80px;
 }
 
+.on-duty-day-select {
+  min-width: 4.5rem;
+}
+
 .on-duty-month-select {
   min-width: 9.5rem;
 }
