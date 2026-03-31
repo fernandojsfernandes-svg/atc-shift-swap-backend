@@ -1428,14 +1428,16 @@ function App() {
             </form>
           )}
         </div>
-        <h1>Escala pessoal</h1>
-        <details className="scale-intro-details">
-          <summary className="scale-intro-summary">clique para expandir</summary>
-          <p className="scale-subtitle scale-subtitle--intro">
-            N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
-            alterar o n.º ou ao escolher um nome na lista.
-          </p>
-        </details>
+        <div className="title-row-inline">
+          <h1>Escala pessoal</h1>
+          <details className="scale-intro-details">
+            <summary className="scale-intro-summary">clique para mostrar</summary>
+            <p className="scale-subtitle scale-subtitle--intro">
+              N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
+              alterar o n.º ou ao escolher um nome na lista.
+            </p>
+          </details>
+        </div>
 
         <div className="scale-controls">
           <div className="employee-scale-row">
@@ -1536,7 +1538,6 @@ function App() {
                 disabled={importLoading || clearSchedulesLoading}
                 title="Apaga shifts e monthly_schedules e dados de trocas na BD. Utilizadores e equipas mantêm-se. Depois pode importar de novo."
                 style={{
-                  borderColor: 'var(--danger, #b91c1c)',
                   color: 'var(--danger, #b91c1c)',
                 }}
               >
@@ -2324,10 +2325,11 @@ function App() {
           )}
           {myClosedSwaps.length > 0 && (
             <div className="collapsible-with-title">
-              <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
-              <details className="closed-swaps-details">
-                <summary className="scale-intro-summary">clique para mostrar</summary>
-                <div className="closed-swaps-details__body">
+              <div className="title-row-inline">
+                <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
+                <details className="closed-swaps-details">
+                  <summary className="scale-intro-summary">clique para mostrar</summary>
+                  <div className="closed-swaps-details__body">
                   <ul className="my-swaps-list">
                   {myClosedSwaps.map((r) => (
                     <li key={r.id} className="my-swap-item my-swap-item--closed">
@@ -2407,8 +2409,9 @@ function App() {
                     </li>
                   ))}
                   </ul>
-                </div>
-              </details>
+                  </div>
+                </details>
+              </div>
             </div>
           )}
         </section>
@@ -2416,10 +2419,11 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="notifications-section">
-          <h2>Notificações</h2>
-          <details className="closed-swaps-details notifications-details">
-            <summary className="scale-intro-summary notifications-summary">
-              <span className="notifications-summary__prompt">clique para mostrar</span>
+          <div className="title-row-inline">
+            <h2>Notificações</h2>
+            <details className="closed-swaps-details notifications-details">
+            <summary className="scale-intro-summary">
+              clique para mostrar
               {unreadNotificationCount > 0 && (
                 <span className="notifications-new-badge" aria-live="polite">
                   {unreadNotificationCount === 1
@@ -2608,6 +2612,7 @@ function App() {
               )}
             </div>
           </details>
+          </div>
         </section>
       )}
 
@@ -2638,8 +2643,9 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="my-swaps-section my-requester-history-section">
-          <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
-          <details className="closed-swaps-details requester-history-details">
+          <div className="title-row-inline">
+            <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
+            <details className="closed-swaps-details requester-history-details">
             <summary className="scale-intro-summary">clique para mostrar</summary>
             <div className="closed-swaps-details__body">
               <p className="scale-subtitle">
@@ -2720,6 +2726,7 @@ function App() {
               )}
             </div>
           </details>
+          </div>
         </section>
       )}
       {swapPartnerBubble && (

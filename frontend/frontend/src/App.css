@@ -58,7 +58,7 @@
 .btn-logout {
   padding: 0.4rem 0.75rem;
   font-size: 0.9rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
   color: var(--text);
@@ -67,7 +67,7 @@
 
 .btn-logout:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--text);
+  border-color: #f87171;
 }
 
 .scale-header h1 {
@@ -89,6 +89,52 @@
   margin: 0 0 0.85rem;
   text-align: left;
   max-width: 40rem;
+}
+
+/* Título à esquerda, «clique para mostrar» à direita (menos altura em ecrãs largos) */
+.title-row-inline {
+  position: relative;
+  margin-bottom: 0.85rem;
+}
+
+.title-row-inline > h1,
+.title-row-inline > h2,
+.title-row-inline > h3 {
+  margin: 0;
+  padding-right: min(46%, 15rem);
+  line-height: 1.35;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.title-row-inline > details {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  text-align: right;
+  max-width: min(15rem, 52%);
+}
+
+.title-row-inline > details[open] {
+  position: static;
+  max-width: none;
+  margin-top: 0.65rem;
+  text-align: left;
+}
+
+.title-row-inline:has(> details[open]) > h1,
+.title-row-inline:has(> details[open]) > h2,
+.title-row-inline:has(> details[open]) > h3 {
+  padding-right: 0;
+}
+
+.title-row-inline .scale-intro-details {
+  margin-bottom: 0;
+}
+
+.title-row-inline > .closed-swaps-details {
+  margin-top: 0;
 }
 
 .scale-intro-summary {
@@ -156,8 +202,8 @@
   margin-top: 0;
 }
 
-.my-requester-history-section > h2 {
-  margin: 0 0 0.35rem;
+.my-requester-history-section .title-row-inline > h2 {
+  margin: 0;
   font-size: 1.35rem;
 }
 
@@ -270,7 +316,7 @@
   align-self: flex-end;
   padding: 0.5rem 0.85rem;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shift-red, #dc2626);
   background: var(--bg);
   color: var(--text-h);
   font-size: 0.95rem;
@@ -282,7 +328,7 @@
 
 .btn-my-scale:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--text);
+  border-color: #f87171;
 }
 
 .employee-scale-field {
@@ -324,7 +370,7 @@
 .month-nav button {
   width: 2.25rem;
   height: 2.25rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: var(--bg);
   font-size: 1.25rem;
@@ -335,6 +381,7 @@
 
 .month-nav button:hover {
   background: var(--code-bg);
+  border-color: #f87171;
 }
 
 .month-label {
@@ -346,7 +393,7 @@
 .btn-load {
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  border: none;
+  border: 1px solid var(--shift-red, #dc2626);
   background: var(--accent);
   color: #fff;
   font-size: 1rem;
@@ -357,20 +404,24 @@
 .btn-load--light {
   background: #fff !important;
   color: #111 !important;
+  border: 1px solid var(--shift-red, #dc2626) !important;
 }
 
 .btn-load--light:hover:not(:disabled) {
   background: #eee !important;
   filter: none;
+  border-color: #f87171 !important;
 }
 
 .btn-load:hover:not(:disabled) {
   filter: brightness(1.1);
+  border-color: #f87171;
 }
 
 .btn-load:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  border-color: rgba(220, 38, 38, 0.45);
 }
 
 .scale-error {
@@ -758,23 +809,20 @@
 
 .notifications-section h2 {
   font-size: 1.35rem;
-  margin: 0 0 0.35rem;
+  margin: 0;
+}
+
+.notifications-section .title-row-inline {
+  margin-bottom: 0.5rem;
 }
 
 .notifications-section > .closed-swaps-details {
   margin-top: 0;
 }
 
-.notifications-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.75rem;
-}
-
-.notifications-summary__prompt {
-  flex: 1 1 12rem;
-  min-width: 0;
+/* Badge à direita do «clique para mostrar»; o resumo fica igual ao das outras secções (sem flex no texto). */
+.scale-intro-summary .notifications-new-badge {
+  margin-left: 0.5rem;
 }
 
 .notifications-new-badge {
@@ -788,6 +836,7 @@
   padding: 0.2rem 0.55rem;
   line-height: 1.25;
   white-space: nowrap;
+  vertical-align: 0.15em;
 }
 
 .notifications-details[open] .notifications-new-badge {
@@ -988,7 +1037,7 @@
 .btn-close-panel {
   width: 2rem;
   height: 2rem;
-  border: none;
+  border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
   font-size: 1.1rem;
@@ -998,6 +1047,7 @@
 
 .btn-close-panel:hover {
   background: var(--border);
+  border-color: #f87171;
 }
 
 .swap-panel-intro {
@@ -1025,14 +1075,14 @@
   text-align: left;
   padding: 0.35rem 0.5rem;
   border-radius: 4px;
-  border: 1px solid transparent;
+  border: 1px solid var(--shift-red, #dc2626);
   background: transparent;
   color: var(--text);
   cursor: pointer;
 }
 
 .direct-search-results li button:hover {
-  border-color: var(--accent);
+  border-color: #f87171;
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -1327,7 +1377,7 @@
 .btn-remove-row {
   padding: 0.25rem 0.5rem;
   font-size: 0.85rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shift-red, #dc2626);
   border-radius: 4px;
   background: transparent;
   cursor: pointer;
@@ -1336,12 +1386,13 @@
 
 .btn-remove-row:hover {
   background: var(--code-bg);
+  border-color: #f87171;
 }
 
 .btn-secondary {
   padding: 0.4rem 0.75rem;
   font-size: 0.9rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
@@ -1350,6 +1401,7 @@
 
 .btn-secondary:hover {
   background: var(--code-bg);
+  border-color: #f87171;
 }
 
 .swap-success {
@@ -1412,6 +1464,19 @@
 
   .scale-header h1 {
     font-size: 1.4rem;
+  }
+
+  .title-row-inline > details {
+    position: static;
+    max-width: none;
+    text-align: left;
+    margin-top: 0.35rem;
+  }
+
+  .title-row-inline > h1,
+  .title-row-inline > h2,
+  .title-row-inline > h3 {
+    padding-right: 0;
   }
 
   .scale-subtitle {
