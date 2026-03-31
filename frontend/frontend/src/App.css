@@ -56,8 +56,10 @@
 }
 
 .btn-logout {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
+  box-sizing: border-box;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
@@ -314,16 +316,16 @@
 .btn-my-scale {
   flex: 0 0 auto;
   align-self: flex-end;
-  padding: 0.5rem 0.85rem;
+  box-sizing: border-box;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
   border-radius: 6px;
   border: 1px solid var(--shift-red, #dc2626);
   background: var(--bg);
   color: var(--text-h);
-  font-size: 0.95rem;
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   cursor: pointer;
   white-space: nowrap;
-  min-height: 2.5rem;
-  line-height: 1.2;
 }
 
 .btn-my-scale:hover {
@@ -368,15 +370,20 @@
 }
 
 .month-nav button {
-  width: 2.25rem;
-  height: 2.25rem;
+  box-sizing: border-box;
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+  padding: 0;
   border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: var(--bg);
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   line-height: 1;
   cursor: pointer;
   color: var(--text-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .month-nav button:hover {
@@ -391,12 +398,14 @@
 }
 
 .btn-load {
-  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
   border-radius: 6px;
   border: 1px solid var(--shift-red, #dc2626);
   background: var(--accent);
   color: #fff;
-  font-size: 1rem;
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   cursor: pointer;
 }
 
@@ -1043,14 +1052,20 @@
 }
 
 .btn-close-panel {
-  width: 2rem;
-  height: 2rem;
+  box-sizing: border-box;
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+  padding: 0;
   border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
   font-size: 1.1rem;
+  line-height: 1;
   cursor: pointer;
   color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-close-panel:hover {
@@ -1079,9 +1094,12 @@
 }
 
 .direct-search-results li button {
+  box-sizing: border-box;
   width: 100%;
   text-align: left;
-  padding: 0.35rem 0.5rem;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   border-radius: 4px;
   border: 1px solid var(--shift-red, #dc2626);
   background: transparent;
@@ -1383,8 +1401,10 @@
 }
 
 .btn-remove-row {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.85rem;
+  box-sizing: border-box;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   border: 1px solid var(--shift-red, #dc2626);
   border-radius: 4px;
   background: transparent;
@@ -1398,8 +1418,10 @@
 }
 
 .btn-secondary {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
+  box-sizing: border-box;
+  padding: var(--ui-btn-pad-y) var(--ui-btn-pad-x);
+  font-size: var(--ui-btn-font-size);
+  line-height: var(--ui-btn-line-height);
   border: 1px solid var(--shift-red, #dc2626);
   border-radius: 6px;
   background: transparent;
@@ -1420,6 +1442,10 @@
 
 /* Telemóveis e ecrãs pequenos */
 @media (max-width: 640px) {
+  :root {
+    --ui-btn-font-size: 16px;
+  }
+
   .app-scale {
     padding: max(0.75rem, env(safe-area-inset-top, 0px))
       max(1rem, env(safe-area-inset-right, 0px))
@@ -1466,8 +1492,6 @@
 
   .login-bar-session .btn-logout {
     width: 100%;
-    min-height: 44px;
-    padding: 0.55rem 1rem;
   }
 
   .scale-header h1 {
@@ -1521,7 +1545,6 @@
 
   .btn-my-scale {
     width: 100%;
-    min-height: 44px;
   }
 
   .scale-controls > .control-group {
@@ -1547,10 +1570,6 @@
   }
 
   .month-nav button {
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 44px;
-    min-height: 44px;
     flex-shrink: 0;
   }
 
@@ -1576,13 +1595,6 @@
   .scale-controls .edit-scale-toggle input {
     width: 1.15rem;
     height: 1.15rem;
-  }
-
-  .btn-load,
-  .btn-load--light {
-    min-height: 44px;
-    padding: 0.6rem 1rem;
-    font-size: 1rem;
   }
 
   .calendar-wrap {
@@ -1652,13 +1664,6 @@
     font-size: 1.05rem;
   }
 
-  .btn-close-panel {
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 44px;
-    min-height: 44px;
-  }
-
   .swap-option-card {
     padding: 0.75rem;
     margin-bottom: 1rem;
@@ -1679,8 +1684,4 @@
     width: 100%;
   }
 
-  .btn-secondary {
-    min-height: 44px;
-    padding: 0.55rem 1rem;
-  }
 }

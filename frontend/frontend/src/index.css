@@ -29,6 +29,13 @@
   --section-gap: 2rem;
   --surface-radius: 8px;
 
+  /* Botões: mesma base que inputs/selects (padding proporcional à altura) */
+  --ui-btn-pad-y: 0.5rem;
+  --ui-btn-pad-x: 0.75rem;
+  --ui-btn-font-size: 1rem;
+  --ui-btn-line-height: 1.25;
+  --ui-control-height: 2.375rem;
+
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: dark;

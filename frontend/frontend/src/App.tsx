@@ -359,6 +359,9 @@ function App() {
   const [rejectSwapError, setRejectSwapError] = useState<string | null>(null)
   const [rejectSwapSuccessHint, setRejectSwapSuccessHint] = useState<string | null>(null)
   const [notificationsDetailsOpen, setNotificationsDetailsOpen] = useState(false)
+  /** Após fechar o painel, o badge fica em 0 até o n.º de não lidas aumentar (nova notificação) ou chegar a 0. */
+  const [notificationsBadgeClearedUntilNew, setNotificationsBadgeClearedUntilNew] = useState(false)
+  const prevUnreadNotificationCountRef = useRef<number | null>(null)
 
   const [swapActions, setSwapActions] = useState<SwapActionDto[]>([])
   const [swapActionsLoading, setSwapActionsLoading] = useState(false)
@@ -941,6 +944,24 @@ function App() {
 
   const visibleNotifications = notifications.filter((n) => !n.read_at)
   const unreadNotificationCount = visibleNotifications.length
+
+  useEffect(() => {
+    const prev = prevUnreadNotificationCountRef.current
+    if (prev !== null && unreadNotificationCount > prev) {
+      setNotificationsBadgeClearedUntilNew(false)
+    }
+    if (unreadNotificationCount === 0) {
+      setNotificationsBadgeClearedUntilNew(false)
+    }
+    prevUnreadNotificationCountRef.current = unreadNotificationCount
+  }, [unreadNotificationCount])
+
+  const notificationsBadgeEffectiveZero =
+    notificationsDetailsOpen ||
+    (notificationsBadgeClearedUntilNew && unreadNotificationCount > 0)
+  const notificationsBadgeShow =
+    notificationsDetailsOpen || unreadNotificationCount > 0
+  const notificationsBadgeDisplayCount = notificationsBadgeEffectiveZero ? 0 : unreadNotificationCount
 
   async function markNotificationRead(id: number) {
     const token = localStorage.getItem('token')
@@ -2426,17 +2447,21 @@ function App() {
             <h2>Notificações</h2>
             <details
               className="closed-swaps-details notifications-details"
-              onToggle={(e) => setNotificationsDetailsOpen((e.target as HTMLDetailsElement).open)}
+              onToggle={(e) => {
+                const open = (e.target as HTMLDetailsElement).open
+                setNotificationsDetailsOpen(open)
+                if (!open) {
+                  setNotificationsBadgeClearedUntilNew(true)
+                }
+              }}
             >
             <summary className="scale-intro-summary">
               Clique para ver
-              {(notificationsDetailsOpen || unreadNotificationCount > 0) && (
+              {notificationsBadgeShow && (
                 <span className="notifications-new-badge" aria-live="polite">
-                  {notificationsDetailsOpen
-                    ? '0 novas notificações'
-                    : unreadNotificationCount === 1
-                      ? '1 nova notificação'
-                      : `${unreadNotificationCount} novas notificações`}
+                  {notificationsBadgeDisplayCount === 1
+                    ? '1 nova notificação'
+                    : `${notificationsBadgeDisplayCount} novas notificações`}
                 </span>
               )}
             </summary>
