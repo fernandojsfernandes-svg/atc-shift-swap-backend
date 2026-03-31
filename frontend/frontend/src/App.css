@@ -106,7 +106,8 @@
 
 .title-row-inline > h1,
 .title-row-inline > h2,
-.title-row-inline > h3 {
+.title-row-inline > h3,
+.title-row-inline > .notifications-heading {
   margin: 0;
   padding-right: 0;
   line-height: 1.35;
@@ -267,6 +268,62 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
 
 .my-requester-history-section > .closed-swaps-details {
   margin-top: 0;
+}
+
+.requester-history-body .requester-history-refresh {
+  margin-bottom: 1rem;
+}
+
+.requester-history-list {
+  margin-top: 0;
+}
+
+.my-requester-history-section .requester-history-item.notifications-item {
+  align-items: flex-start;
+}
+
+.requester-history-message {
+  width: 100%;
+  min-width: 0;
+}
+
+.requester-history-message > p {
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  color: var(--text-h);
+  font-size: 0.95rem;
+}
+
+.requester-history-message > p:last-child {
+  margin-bottom: 0;
+}
+
+.requester-history-lead {
+  margin-bottom: 0.45rem;
+}
+
+.requester-history-package-legs {
+  margin: 0;
+  padding: 0 0 0 0.65rem;
+  border-left: 2px solid var(--border);
+}
+
+.requester-history-package-line {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text-h);
+}
+
+.requester-history-package-line:last-child {
+  margin-bottom: 0;
+}
+
+.requester-history-rejected .requester-history-follow {
+  color: var(--text);
 }
 
 .scale-loading-hint {
@@ -889,6 +946,20 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   margin: 0;
 }
 
+.notifications-heading {
+  display: block;
+  min-width: 0;
+}
+
+.title-row-inline.notifications-title-row > .notifications-heading > h2 {
+  margin: 0;
+}
+
+/* Desktop: badge ao lado do resumo; telemóvel: só o --under-h2 (ver media query) */
+.notifications-new-badge--under-h2 {
+  display: none;
+}
+
 .notifications-section .title-row-inline {
   margin-bottom: 0.5rem;
 }
@@ -897,8 +968,8 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   margin-top: 0;
 }
 
-/* Badge à direita do texto do resumo; o resumo fica igual ao das outras secções (sem flex no texto). */
-.scale-intro-summary .notifications-new-badge {
+/* Badge à direita do texto do resumo (desktop); em telemóvel usa-se cópia sob o título */
+.scale-intro-summary .notifications-new-badge--inline-summary {
   margin-left: 0.5rem;
 }
 
@@ -1571,8 +1642,20 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
 
   .title-row-inline > h1,
   .title-row-inline > h2,
-  .title-row-inline > h3 {
+  .title-row-inline > h3,
+  .title-row-inline > .notifications-heading {
     padding-right: min(42%, 11.5rem);
+  }
+
+  .notifications-new-badge--under-h2 {
+    display: inline-block;
+    margin-top: 0.35rem;
+    margin-left: 0;
+    vertical-align: baseline;
+  }
+
+  .notifications-new-badge--inline-summary {
+    display: none !important;
   }
 
   .title-row-inline > details {
@@ -1614,7 +1697,8 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
 
   .title-row-inline:has(> details[open]) > h1,
   .title-row-inline:has(> details[open]) > h2,
-  .title-row-inline:has(> details[open]) > h3 {
+  .title-row-inline:has(> details[open]) > h3,
+  .title-row-inline:has(> details[open]) > .notifications-heading {
     padding-right: 0;
   }
 

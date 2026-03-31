@@ -309,10 +309,10 @@ function formatNotifCalendarDate(isoDate: string | null | undefined): string {
 
 function swapActionPackageLines(legs: SwapPackageLegDto[]) {
   return legs.map((leg, i) => (
-    <span key={`${leg.requester_date}-${leg.accepter_date}-${i}`} style={{ display: 'block' }}>
+    <p key={`${leg.requester_date}-${leg.accepter_date}-${i}`} className="requester-history-package-line">
       Troca <strong>{leg.requester_code}</strong> no dia {formatNotifCalendarDate(leg.requester_date)} pelo seu{' '}
       <strong>{leg.accepter_code}</strong> ({formatNotifCalendarDate(leg.accepter_date)}).
-    </span>
+    </p>
   ))
 }
 
@@ -2496,8 +2496,20 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="notifications-section">
-          <div className="title-row-inline">
-            <h2>Notificações</h2>
+          <div className="title-row-inline notifications-title-row">
+            <div className="notifications-heading">
+              <h2>Notificações</h2>
+              {notificationsBadgeShow && (
+                <span
+                  className="notifications-new-badge notifications-new-badge--under-h2"
+                  aria-live="polite"
+                >
+                  {notificationsBadgeDisplayCount === 1
+                    ? '1 nova notificação'
+                    : `${notificationsBadgeDisplayCount} novas notificações`}
+                </span>
+              )}
+            </div>
             <details
               className="closed-swaps-details notifications-details"
               onToggle={(e) => {
@@ -2521,7 +2533,7 @@ function App() {
                 <span className="summary-details-open">Clique para fechar</span>
               </span>
               {notificationsBadgeShow && (
-                <span className="notifications-new-badge" aria-live="polite">
+                <span className="notifications-new-badge notifications-new-badge--inline-summary" aria-live="polite">
                   {notificationsBadgeDisplayCount === 1
                     ? '1 nova notificação'
                     : `${notificationsBadgeDisplayCount} novas notificações`}
@@ -2745,16 +2757,12 @@ function App() {
                 <span className="summary-details-open">Clique para fechar</span>
               </span>
             </summary>
-            <div className="closed-swaps-details__body">
-              <p className="scale-subtitle">
-                Respostas aos seus pedidos. Pode apagar linhas (só para si).
-              </p>
+            <div className="closed-swaps-details__body requester-history-body">
               <button
                 type="button"
-                className="btn-load btn-load--light"
+                className="btn-load btn-load--light requester-history-refresh"
                 onClick={loadSwapActions}
                 disabled={swapActionsLoading}
-                style={{ marginBottom: '1rem' }}
               >
                 {swapActionsLoading ? 'A carregar...' : 'Atualizar histórico'}
               </button>
@@ -2763,7 +2771,7 @@ function App() {
                   <p className="scale-empty">Ainda não há aceitações nem recusas aos seus pedidos.</p>
                 )}
               {swapActions.filter((a) => a.requester_id === currentUser?.id).length > 0 && (
-                <ul className="notifications-list">
+                <ul className="notifications-list requester-history-list">
                   {swapActions
                     .filter((a) => a.requester_id === currentUser?.id)
                     .map((a) => {
@@ -2771,31 +2779,42 @@ function App() {
                       const packageAccepted =
                         a.action_type === 'ACCEPTED' && a.package_legs && a.package_legs.length >= 2
                       return (
-                        <li key={a.id} className="notifications-item notifications-item--read">
+                        <li key={a.id} className="notifications-item notifications-item--read requester-history-item">
                           <div className="notifications-item-body">
-                            <span>
+                            <div className="requester-history-message">
                               {packageAccepted ? (
                                 <>
-                                  Aceite pacote de troca por <strong>{a.actor_name || 'um colega'}</strong>:
-                                  {swapActionPackageLines(a.package_legs!)}
+                                  <p className="requester-history-lead">
+                                    Aceite pacote de troca por <strong>{a.actor_name || 'um colega'}</strong>
+                                  </p>
+                                  <div className="requester-history-package-legs">
+                                    {swapActionPackageLines(a.package_legs!)}
+                                  </div>
                                 </>
                               ) : a.action_type === 'REJECTED' ? (
-                                <>
-                                  <strong>{a.actor_name || 'Um colega'}</strong> indicou que não aceita este
-                                  pedido para si ({a.offered_shift_code} {offeredDate}
-                                  {a.accepter_shift_code ? (
-                                    <>
-                                      {' '}
-                                      — turno dele <strong>{a.accepter_shift_code}</strong>
-                                    </>
-                                  ) : null}
+                                <p className="requester-history-rejected">
+                                  <strong>{a.actor_name || 'Um colega'}</strong> indicou que não aceita este pedido
+                                  para si (
+                                  <span className="requester-history-meta">
+                                    {a.offered_shift_code} · {offeredDate}
+                                    {a.accepter_shift_code ? (
+                                      <>
+                                        {' '}
+                                        — turno dele <strong>{a.accepter_shift_code}</strong>
+                                      </>
+                                    ) : null}
+                                  </span>
                                   ).
-                                  {a.direct_swap !== true &&
-                                    ' O pedido pode continuar aberto para outros colegas.'}
-                                </>
+                                  {a.direct_swap !== true ? (
+                                    <span className="requester-history-follow">
+                                      {' '}
+                                      O pedido pode continuar aberto para outros colegas.
+                                    </span>
+                                  ) : null}
+                                </p>
                               ) : (
-                                <>
-                                  Aceite troca {a.offered_shift_code} {offeredDate}
+                                <p className="requester-history-accepted">
+                                  Aceite troca <strong>{a.offered_shift_code}</strong> {offeredDate}
                                   {a.accepter_shift_code ? (
                                     <>
                                       {' '}
@@ -2803,9 +2822,9 @@ function App() {
                                     </>
                                   ) : null}{' '}
                                   por <strong>{a.actor_name || 'um colega'}</strong>.
-                                </>
+                                </p>
                               )}
-                            </span>
+                            </div>
                           </div>
                           <div className="notifications-item-actions">
                             <button
