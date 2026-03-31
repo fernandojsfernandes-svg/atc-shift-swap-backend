@@ -808,6 +808,34 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   color: var(--text-h);
   padding: 0.65rem 0 0.35rem;
   user-select: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+}
+
+.calendar-legend-summary__title {
+  color: var(--text-h);
+}
+
+/* «clique para ver» / «clique para fechar» — vermelho (como outros resumos) */
+.calendar-legend-summary .calendar-legend-summary__action {
+  min-width: 0;
+  justify-items: start;
+  color: var(--shift-red, #dc2626);
+  font-weight: 500;
+}
+
+.calendar-legend-summary .calendar-legend-summary__action .summary-details-open {
+  display: none;
+}
+
+.calendar-legend-details[open] .calendar-legend-summary .calendar-legend-summary__action .summary-details-closed {
+  display: none;
+}
+
+.calendar-legend-details[open] .calendar-legend-summary .calendar-legend-summary__action .summary-details-open {
+  display: inline;
 }
 
 .calendar-legend-summary::-webkit-details-marker {

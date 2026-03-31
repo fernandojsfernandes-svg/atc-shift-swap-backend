@@ -1847,7 +1847,13 @@ function App() {
             })}
           </div>
           <details className="calendar-legend-details">
-            <summary className="calendar-legend-summary">Legenda — clique para ver</summary>
+            <summary className="calendar-legend-summary">
+              <span className="calendar-legend-summary__title">Legenda — </span>
+              <span className="summary-details-toggle calendar-legend-summary__action">
+                <span className="summary-details-closed">clique para ver</span>
+                <span className="summary-details-open">clique para fechar</span>
+              </span>
+            </summary>
             <div className="calendar-legend">
               <span><em>Fundo claro</em> Rotação normal</span>
               <span><em>Cinzento claro</em> Troca NAV</span>
