@@ -939,6 +939,7 @@ function App() {
   }
 
   const visibleNotifications = notifications.filter((n) => !n.read_at)
+  const unreadNotificationCount = visibleNotifications.length
 
   async function markNotificationRead(id: number) {
     const token = localStorage.getItem('token')
@@ -1395,8 +1396,8 @@ function App() {
           ) : (
             <form className="login-form" onSubmit={doLogin}>
               <p className="login-bar-hint">
-                Inicie sessão com <strong>email</strong> e <strong>palavra-passe</strong>. O campo «Nº / nome» abaixo serve
-                só para carregar a escala (com sessão pode pesquisar por nome; não substitui o login).
+                <strong>Email</strong> e <strong>palavra-passe</strong>. O campo abaixo só carrega escalas; com sessão pode
+                pesquisar por nome — não substitui o login.
               </p>
               <label className="control-group">
                 <span>Email</span>
@@ -1428,10 +1429,13 @@ function App() {
           )}
         </div>
         <h1>Escala pessoal</h1>
-        <p className="scale-subtitle">
-          N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao alterar o
-          n.º ou ao escolher um nome na lista.
-        </p>
+        <details className="scale-intro-details">
+          <summary className="scale-intro-summary">clique para expandir</summary>
+          <p className="scale-subtitle scale-subtitle--intro">
+            N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
+            alterar o n.º ou ao escolher um nome na lista.
+          </p>
+        </details>
 
         <div className="scale-controls">
           <div className="employee-scale-row">
@@ -1801,8 +1805,7 @@ function App() {
       <section className="on-duty-section">
         <h2>Quem está de serviço?</h2>
         <p className="scale-subtitle">
-          O mês e o ano começam iguais ao calendário em cima; pode alterá-los aqui para consultar outro
-          mês (se existir escala na base de dados).
+          Mês e ano seguem o calendário; altere aqui para consultar outro período na base de dados.
         </p>
         <div className="on-duty-controls">
           <label className="control-group">
@@ -2213,9 +2216,8 @@ function App() {
         <section className="my-swaps-section">
           <h2>Os meus pedidos de troca</h2>
           <p className="scale-subtitle">
-            <strong>Em aberto</strong> — ainda à espera de resposta.{' '}
-            <strong>Fechados recentemente</strong> — últimos pedidos aceites ou recusados (também no histórico
-            abaixo).
+            <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
+            recusados (detalhe também no histórico abaixo).
           </p>
           <button
             type="button"
@@ -2321,13 +2323,15 @@ function App() {
             </>
           )}
           {myClosedSwaps.length > 0 && (
-            <>
-              <h3 className="my-swaps-subtitle" style={{ marginTop: '1.25rem' }}>
-                Fechados recentemente
-              </h3>
-              <ul className="my-swaps-list">
-                {myClosedSwaps.map((r) => (
-                  <li key={r.id} className="my-swap-item my-swap-item--closed">
+            <details className="closed-swaps-details">
+              <summary className="scale-intro-summary">
+                clique para mostrar as trocas recentemente fechadas
+              </summary>
+              <div className="closed-swaps-details__body">
+                <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
+                <ul className="my-swaps-list">
+                  {myClosedSwaps.map((r) => (
+                    <li key={r.id} className="my-swap-item my-swap-item--closed">
                     <div className="my-swap-item-body">
                       <div className="my-swap-summary-line">
                         <strong>#{r.id}</strong> · <span className="my-swap-status">{mySwapStatusLabel(r.status)}</span>{' '}
@@ -2401,93 +2405,209 @@ function App() {
                         </div>
                       )}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
           )}
         </section>
       )}
 
       {localStorage.getItem('token') && (
-        <section className="my-swaps-section my-requester-history-section">
-          <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
-          <p className="scale-subtitle">
-            Respostas aos pedidos que criou. Pode apagar linhas individualmente (só desaparecem para si).
-          </p>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={loadSwapActions}
-            disabled={swapActionsLoading}
-            style={{ marginBottom: '1rem' }}
-          >
-            {swapActionsLoading ? 'A carregar...' : 'Atualizar histórico'}
-          </button>
-          {!swapActionsLoading &&
-            swapActions.filter((a) => a.requester_id === currentUser?.id).length === 0 && (
-              <p className="scale-empty">Ainda não há aceitações nem recusas aos seus pedidos.</p>
-            )}
-          {swapActions.filter((a) => a.requester_id === currentUser?.id).length > 0 && (
-            <ul className="notifications-list">
-              {swapActions
-                .filter((a) => a.requester_id === currentUser?.id)
-                .map((a) => {
-                  const offeredDate = formatSwapActionOfferedDatePt(a.offered_shift_date)
-                  const packageAccepted =
-                    a.action_type === 'ACCEPTED' && a.package_legs && a.package_legs.length >= 2
-                  return (
-                    <li key={a.id} className="notifications-item notifications-item--read">
+        <section className="notifications-section">
+          <details className="closed-swaps-details notifications-details">
+            <summary className="scale-intro-summary notifications-summary">
+              <span className="notifications-summary__prompt">clique para mostrar as notificações</span>
+              {unreadNotificationCount > 0 && (
+                <span className="notifications-new-badge" aria-live="polite">
+                  {unreadNotificationCount === 1
+                    ? '1 nova notificação'
+                    : `${unreadNotificationCount} novas notificações`}
+                </span>
+              )}
+            </summary>
+            <div className="closed-swaps-details__body">
+              <h2>Notificações</h2>
+              <p className="scale-subtitle">
+                Pedidos em que pode aceitar a troca (o colega oferece um turno por um seu compatível).
+              </p>
+              <label className="notifications-toggle">
+                <input
+                  type="checkbox"
+                  checked={notificationsEnabled}
+                  onChange={(e) => toggleNotificationsPreference(e.target.checked)}
+                />
+                <span>Receber notificações quando um colega criar um pedido que eu possa satisfazer</span>
+              </label>
+              <button
+                type="button"
+                className="btn-load btn-load--light"
+                onClick={loadNotifications}
+                disabled={notificationsLoading}
+                style={{ marginBottom: '1rem' }}
+              >
+                {notificationsLoading ? 'A carregar...' : 'Atualizar notificações'}
+              </button>
+              {visibleNotifications.length === 0 && !notificationsLoading && (
+                <p className="scale-empty">Nenhuma notificação.</p>
+              )}
+              {acceptSwapError && (
+                <div className="scale-error" style={{ marginBottom: '0.5rem' }}>{acceptSwapError}</div>
+              )}
+              {rejectSwapError && (
+                <div className="scale-error" style={{ marginBottom: '0.5rem' }}>{rejectSwapError}</div>
+              )}
+              {visibleNotifications.length > 0 && (
+                <ul className="notifications-list">
+                  {visibleNotifications.map((n) => (
+                    <li
+                      key={n.id}
+                      className={n.read_at ? 'notifications-item notifications-item--read' : 'notifications-item'}
+                    >
                       <div className="notifications-item-body">
-                        <span>
-                          {packageAccepted ? (
-                            <>
-                              Aceite pacote de troca por <strong>{a.actor_name || 'um colega'}</strong>:
-                              {swapActionPackageLines(a.package_legs!)}
-                            </>
-                          ) : a.action_type === 'REJECTED' ? (
-                            <>
-                              <strong>{a.actor_name || 'Um colega'}</strong> indicou que não aceita este
-                              pedido para si ({a.offered_shift_code} {offeredDate}
-                              {a.accepter_shift_code ? (
-                                <>
-                                  {' '}
-                                  — turno dele <strong>{a.accepter_shift_code}</strong>
-                                </>
-                              ) : null}
-                              ).
-                              {a.direct_swap !== true &&
-                                ' O pedido pode continuar aberto para outros colegas.'}
-                            </>
-                          ) : (
-                            <>
-                              Aceite troca {a.offered_shift_code} {offeredDate}
-                              {a.accepter_shift_code ? (
-                                <>
-                                  {' '}
-                                  por <strong>{a.accepter_shift_code}</strong>
-                                </>
-                              ) : null}{' '}
-                              por <strong>{a.actor_name || 'um colega'}</strong>.
-                            </>
-                          )}
-                        </span>
+                        {n.notification_kind === 'swap_accepted_summary' && n.body_text && (
+                          <span className="notifications-can-accept-text">{n.body_text}</span>
+                        )}
+                        {n.notification_kind === 'request_fulfilled' && (
+                          <span>
+                            O pedido de troca
+                            {n.offered_shift_code && n.offered_shift_date && (
+                              <> ({n.offered_shift_code} do dia {n.offered_shift_date})</>
+                            )}{' '}
+                            foi satisfeito por outro colega.
+                          </span>
+                        )}
+                        {n.notification_kind === 'request_rejected' && (
+                          <span>
+                            O seu pedido de troca
+                            {n.offered_shift_code && n.offered_shift_date && (
+                              <> ({n.offered_shift_code} do dia {n.offered_shift_date})</>
+                            )}{' '}
+                            foi recusado por {n.rejected_by_name ? n.rejected_by_name : 'um colega'}.
+                          </span>
+                        )}
+                        {(!n.notification_kind || n.notification_kind === 'can_accept') &&
+                          n.notification_kind !== 'swap_accepted_summary' && (
+                          <>
+                            {n.requester_name && n.offered_shift_code ? (
+                              <span className="notifications-can-accept-text">
+                                {n.accepter_package_legs &&
+                                n.requester_package_legs &&
+                                n.accepter_package_legs.length >= 2 &&
+                                n.requester_package_legs.length === n.accepter_package_legs.length ? (
+                                  <>
+                                    <strong>{n.requester_name}</strong> propõe um{' '}
+                                    <strong>pacote de trocas</strong> :
+                                    <ul className="notifications-wanted-list" style={{ marginTop: '0.35rem' }}>
+                                      {n.requester_package_legs.map((rq, i) => (
+                                        <li key={`${rq.date}-${rq.code}-${i}`}>
+                                          Troca <strong>{rq.code}</strong> no dia{' '}
+                                          {formatNotifCalendarDate(rq.date)} pelo seu{' '}
+                                          <strong>{n.accepter_package_legs![i].code}</strong> (
+                                          {formatNotifCalendarDate(n.accepter_package_legs![i].date)}).
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                ) : n.accepter_shift_code && n.accepter_shift_date ? (
+                                  <>
+                                    <strong>{n.requester_name}</strong> quer trocar o turno{' '}
+                                    <strong>{n.offered_shift_code}</strong>
+                                    {n.offered_shift_date && (
+                                      <> do dia {formatNotifCalendarDate(n.offered_shift_date)}</>
+                                    )}{' '}
+                                    {String(n.offered_shift_date ?? '').slice(0, 10) ===
+                                    String(n.accepter_shift_date).slice(0, 10) ? (
+                                      <>
+                                        pelo seu <strong>{n.accepter_shift_code}</strong> do mesmo dia.
+                                      </>
+                                    ) : (
+                                      <>
+                                        pelo seu <strong>{n.accepter_shift_code}</strong> do dia{' '}
+                                        {formatNotifCalendarDate(n.accepter_shift_date)}.
+                                      </>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <strong>{n.requester_name}</strong> quer trocar o turno{' '}
+                                    <strong>{n.offered_shift_code}</strong>
+                                    {n.offered_shift_date && (
+                                      <> do dia {formatNotifCalendarDate(n.offered_shift_date)}</>
+                                    )}
+                                    {n.wanted_options && n.wanted_options.length > 0 ? (
+                                      <>
+                                        . Para aceitar, precisa de ter <strong>em troca</strong> um destes
+                                        turnos <strong>seus</strong>, nas datas indicadas:
+                                        <ul className="notifications-wanted-list">
+                                          {n.wanted_options.map((w) => (
+                                            <li key={w.date}>
+                                              <strong>{formatNotifCalendarDate(w.date)}</strong>
+                                              {' — '}
+                                              {w.shift_types.join(', ')}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                        <span className="notifications-wanted-hint">
+                                          Só poderá aceitar no dia em que a sua escala tiver um destes códigos
+                                          nessa data.
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {n.accepted_shift_types && n.accepted_shift_types.length > 0 ? (
+                                          <> por um {n.accepted_shift_types.join(' ou ')} no mesmo dia.</>
+                                        ) : (
+                                          <> Aceita em troca qualquer turno seu nesse mesmo dia.</>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span>Pedido de troca #{n.swap_request_id} que pode satisfazer.</span>
+                            )}
+                          </>
+                        )}
                       </div>
                       <div className="notifications-item-actions">
+                        {(!n.notification_kind || n.notification_kind === 'can_accept') &&
+                          n.notification_kind !== 'swap_accepted_summary' && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-load btn-load--light"
+                              onClick={() => acceptSwapFromNotification(n.swap_request_id, n.id)}
+                              disabled={acceptSwapLoading === n.id}
+                            >
+                              {acceptSwapLoading === n.id ? 'A aceitar...' : 'Aceitar troca'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => rejectSwapFromNotification(n.swap_request_id, n.id)}
+                              disabled={rejectSwapLoading === n.id}
+                            >
+                              {rejectSwapLoading === n.id ? 'A recusar...' : 'Recusar'}
+                            </button>
+                          </>
+                        )}
                         <button
                           type="button"
                           className="btn-secondary"
-                          onClick={() => dismissSwapActionHistory(a.id)}
-                          disabled={dismissHistoryId === a.id}
+                          onClick={() => markNotificationRead(n.id)}
                         >
-                          {dismissHistoryId === a.id ? 'A apagar...' : 'Apagar'}
+                          Apagar
                         </button>
                       </div>
                     </li>
-                  )
-                })}
-            </ul>
-          )}
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
         </section>
       )}
 
@@ -2517,185 +2637,91 @@ function App() {
       )}
 
       {localStorage.getItem('token') && (
-        <section className="notifications-section">
-          <h2>Notificações</h2>
-          <p className="scale-subtitle">
-            Pedidos de troca que pode satisfazer (ex.: um colega quer trocar o turno dele por um turno que tem nesse dia).
-          </p>
-          <label className="notifications-toggle">
-            <input
-              type="checkbox"
-              checked={notificationsEnabled}
-              onChange={(e) => toggleNotificationsPreference(e.target.checked)}
-            />
-            <span>Receber notificações quando um colega criar um pedido que eu possa satisfazer</span>
-          </label>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={loadNotifications}
-            disabled={notificationsLoading}
-            style={{ marginBottom: '1rem' }}
-          >
-            {notificationsLoading ? 'A carregar...' : 'Atualizar notificações'}
-          </button>
-          {visibleNotifications.length === 0 && !notificationsLoading && (
-            <p className="scale-empty">Nenhuma notificação.</p>
-          )}
-          {acceptSwapError && (
-            <div className="scale-error" style={{ marginBottom: '0.5rem' }}>{acceptSwapError}</div>
-          )}
-          {rejectSwapError && (
-            <div className="scale-error" style={{ marginBottom: '0.5rem' }}>{rejectSwapError}</div>
-          )}
-          {visibleNotifications.length > 0 && (
-            <ul className="notifications-list">
-              {visibleNotifications.map((n) => (
-                <li
-                  key={n.id}
-                  className={n.read_at ? 'notifications-item notifications-item--read' : 'notifications-item'}
-                >
-                  <div className="notifications-item-body">
-                    {n.notification_kind === 'swap_accepted_summary' && n.body_text && (
-                      <span className="notifications-can-accept-text">{n.body_text}</span>
-                    )}
-                    {n.notification_kind === 'request_fulfilled' && (
-                      <span>
-                        O pedido de troca
-                        {n.offered_shift_code && n.offered_shift_date && (
-                          <> ({n.offered_shift_code} do dia {n.offered_shift_date})</>
-                        )}{' '}
-                        foi satisfeito por outro colega.
-                      </span>
-                    )}
-                    {n.notification_kind === 'request_rejected' && (
-                      <span>
-                        O seu pedido de troca
-                        {n.offered_shift_code && n.offered_shift_date && (
-                          <> ({n.offered_shift_code} do dia {n.offered_shift_date})</>
-                        )}{' '}
-                        foi recusado por {n.rejected_by_name ? n.rejected_by_name : 'um colega'}.
-                      </span>
-                    )}
-                    {(!n.notification_kind || n.notification_kind === 'can_accept') &&
-                      n.notification_kind !== 'swap_accepted_summary' && (
-                      <>
-                        {n.requester_name && n.offered_shift_code ? (
-                          <span className="notifications-can-accept-text">
-                            {n.accepter_package_legs &&
-                            n.requester_package_legs &&
-                            n.accepter_package_legs.length >= 2 &&
-                            n.requester_package_legs.length === n.accepter_package_legs.length ? (
-                              <>
-                                <strong>{n.requester_name}</strong> propõe um{' '}
-                                <strong>pacote de trocas</strong> :
-                                <ul className="notifications-wanted-list" style={{ marginTop: '0.35rem' }}>
-                                  {n.requester_package_legs.map((rq, i) => (
-                                    <li key={`${rq.date}-${rq.code}-${i}`}>
-                                      Troca <strong>{rq.code}</strong> no dia{' '}
-                                      {formatNotifCalendarDate(rq.date)} pelo seu{' '}
-                                      <strong>{n.accepter_package_legs![i].code}</strong> (
-                                      {formatNotifCalendarDate(n.accepter_package_legs![i].date)}).
-                                    </li>
-                                  ))}
-                                </ul>
-                              </>
-                            ) : n.accepter_shift_code && n.accepter_shift_date ? (
-                              <>
-                                <strong>{n.requester_name}</strong> quer trocar o turno{' '}
-                                <strong>{n.offered_shift_code}</strong>
-                                {n.offered_shift_date && (
-                                  <> do dia {formatNotifCalendarDate(n.offered_shift_date)}</>
-                                )}{' '}
-                                {String(n.offered_shift_date ?? '').slice(0, 10) ===
-                                String(n.accepter_shift_date).slice(0, 10) ? (
-                                  <>
-                                    pelo seu <strong>{n.accepter_shift_code}</strong> do mesmo dia.
-                                  </>
-                                ) : (
-                                  <>
-                                    pelo seu <strong>{n.accepter_shift_code}</strong> do dia{' '}
-                                    {formatNotifCalendarDate(n.accepter_shift_date)}.
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <strong>{n.requester_name}</strong> quer trocar o turno{' '}
-                                <strong>{n.offered_shift_code}</strong>
-                                {n.offered_shift_date && (
-                                  <> do dia {formatNotifCalendarDate(n.offered_shift_date)}</>
-                                )}
-                                {n.wanted_options && n.wanted_options.length > 0 ? (
-                                  <>
-                                    . Para aceitar, precisa de ter <strong>em troca</strong> um destes
-                                    turnos <strong>seus</strong>, nas datas indicadas:
-                                    <ul className="notifications-wanted-list">
-                                      {n.wanted_options.map((w) => (
-                                        <li key={w.date}>
-                                          <strong>{formatNotifCalendarDate(w.date)}</strong>
-                                          {' — '}
-                                          {w.shift_types.join(', ')}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                    <span className="notifications-wanted-hint">
-                                      Só poderá aceitar no dia em que a sua escala tiver um destes códigos
-                                      nessa data.
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    {n.accepted_shift_types && n.accepted_shift_types.length > 0 ? (
-                                      <> por um {n.accepted_shift_types.join(' ou ')} no mesmo dia.</>
-                                    ) : (
-                                      <> Aceita em troca qualquer turno seu nesse mesmo dia.</>
-                                    )}
-                                  </>
-                                )}
-                              </>
-                            )}
-                          </span>
-                        ) : (
-                          <span>Pedido de troca #{n.swap_request_id} que pode satisfazer.</span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className="notifications-item-actions">
-                    {(!n.notification_kind || n.notification_kind === 'can_accept') &&
-                      n.notification_kind !== 'swap_accepted_summary' && (
-                      <>
-                        <button
-                          type="button"
-                          className="btn-load btn-load--light"
-                          onClick={() => acceptSwapFromNotification(n.swap_request_id, n.id)}
-                          disabled={acceptSwapLoading === n.id}
-                        >
-                          {acceptSwapLoading === n.id ? 'A aceitar...' : 'Aceitar troca'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={() => rejectSwapFromNotification(n.swap_request_id, n.id)}
-                          disabled={rejectSwapLoading === n.id}
-                        >
-                          {rejectSwapLoading === n.id ? 'A recusar...' : 'Recusar'}
-                        </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => markNotificationRead(n.id)}
-                    >
-                      Apagar
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <section className="my-swaps-section my-requester-history-section">
+          <details className="closed-swaps-details requester-history-details">
+            <summary className="scale-intro-summary">
+              clique para mostrar o histórico dos meus pedidos (aceites e recusas)
+            </summary>
+            <div className="closed-swaps-details__body">
+              <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
+              <p className="scale-subtitle">
+                Respostas aos seus pedidos. Pode apagar linhas (só para si).
+              </p>
+              <button
+                type="button"
+                className="btn-load btn-load--light"
+                onClick={loadSwapActions}
+                disabled={swapActionsLoading}
+                style={{ marginBottom: '1rem' }}
+              >
+                {swapActionsLoading ? 'A carregar...' : 'Atualizar histórico'}
+              </button>
+              {!swapActionsLoading &&
+                swapActions.filter((a) => a.requester_id === currentUser?.id).length === 0 && (
+                  <p className="scale-empty">Ainda não há aceitações nem recusas aos seus pedidos.</p>
+                )}
+              {swapActions.filter((a) => a.requester_id === currentUser?.id).length > 0 && (
+                <ul className="notifications-list">
+                  {swapActions
+                    .filter((a) => a.requester_id === currentUser?.id)
+                    .map((a) => {
+                      const offeredDate = formatSwapActionOfferedDatePt(a.offered_shift_date)
+                      const packageAccepted =
+                        a.action_type === 'ACCEPTED' && a.package_legs && a.package_legs.length >= 2
+                      return (
+                        <li key={a.id} className="notifications-item notifications-item--read">
+                          <div className="notifications-item-body">
+                            <span>
+                              {packageAccepted ? (
+                                <>
+                                  Aceite pacote de troca por <strong>{a.actor_name || 'um colega'}</strong>:
+                                  {swapActionPackageLines(a.package_legs!)}
+                                </>
+                              ) : a.action_type === 'REJECTED' ? (
+                                <>
+                                  <strong>{a.actor_name || 'Um colega'}</strong> indicou que não aceita este
+                                  pedido para si ({a.offered_shift_code} {offeredDate}
+                                  {a.accepter_shift_code ? (
+                                    <>
+                                      {' '}
+                                      — turno dele <strong>{a.accepter_shift_code}</strong>
+                                    </>
+                                  ) : null}
+                                  ).
+                                  {a.direct_swap !== true &&
+                                    ' O pedido pode continuar aberto para outros colegas.'}
+                                </>
+                              ) : (
+                                <>
+                                  Aceite troca {a.offered_shift_code} {offeredDate}
+                                  {a.accepter_shift_code ? (
+                                    <>
+                                      {' '}
+                                      por <strong>{a.accepter_shift_code}</strong>
+                                    </>
+                                  ) : null}{' '}
+                                  por <strong>{a.actor_name || 'um colega'}</strong>.
+                                </>
+                              )}
+                            </span>
+                          </div>
+                          <div className="notifications-item-actions">
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => dismissSwapActionHistory(a.id)}
+                              disabled={dismissHistoryId === a.id}
+                            >
+                              {dismissHistoryId === a.id ? 'A apagar...' : 'Apagar'}
+                            </button>
+                          </div>
+                        </li>
+                      )
+                    })}
+                </ul>
+              )}
+            </div>
+          </details>
         </section>
       )}
       {swapPartnerBubble && (

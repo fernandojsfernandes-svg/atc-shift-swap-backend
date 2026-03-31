@@ -3,16 +3,16 @@
 .app-scale {
   max-width: 960px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 2rem;
   text-align: left;
 }
 
 .login-bar {
-  margin-bottom: 1.25rem;
-  padding: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: var(--surface-radius, 8px);
+  background: var(--code-bg);
 }
 
 .login-form {
@@ -24,10 +24,10 @@
 
 .login-bar-hint {
   flex: 1 1 100%;
-  margin: 0 0 0.25rem;
-  font-size: 0.88rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
   color: var(--text);
-  line-height: 1.35;
+  line-height: 1.4;
   text-align: left;
 }
 
@@ -71,14 +71,85 @@
 }
 
 .scale-header h1 {
-  font-size: 1.75rem;
-  margin: 0 0 0.25rem;
+  font-size: 1.65rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
 }
 
 .scale-subtitle {
   color: var(--text);
-  font-size: 0.95rem;
-  margin: 0 0 1.25rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0 0 1rem;
+  max-width: 40rem;
+}
+
+.scale-intro-details {
+  margin: 0 0 0.85rem;
+  text-align: left;
+  max-width: 40rem;
+}
+
+.scale-intro-summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--shift-red, #dc2626);
+  list-style: none;
+  user-select: none;
+  line-height: 1.35;
+}
+
+.scale-intro-summary::-webkit-details-marker {
+  display: none;
+}
+
+.scale-intro-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--shift-red, #dc2626);
+}
+
+.scale-intro-details[open] .scale-intro-summary::before,
+.closed-swaps-details[open] .scale-intro-summary::before {
+  transform: rotate(90deg);
+}
+
+.scale-subtitle--intro {
+  margin: 0.5rem 0 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Fechados recentemente — colapsável */
+.closed-swaps-details {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+
+.closed-swaps-details .scale-intro-summary {
+  margin-bottom: 0;
+}
+
+.closed-swaps-details__body {
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+.closed-swaps-details__body .my-swaps-subtitle {
+  margin-top: 0;
+}
+
+.my-requester-history-section > .closed-swaps-details {
+  margin-top: 0;
+}
+
+.requester-history-details .closed-swaps-details__body > h2 {
+  margin-top: 0;
+  font-size: 1.35rem;
 }
 
 .scale-loading-hint {
@@ -90,10 +161,11 @@
 .scale-api-line {
   margin: 0.5rem 0 0;
   padding: 0.35rem 0.5rem;
-  background: var(--code-bg);
+  background: transparent;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text);
+  opacity: 0.72;
   text-align: left;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -148,8 +220,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.85rem 1rem;
+  margin-bottom: 1rem;
 }
 
 .control-group {
@@ -314,7 +386,7 @@
 /* Calendário */
 
 .calendar-wrap {
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 .calendar-weekdays {
@@ -590,8 +662,8 @@
 /* Os meus pedidos de troca */
 
 .my-swaps-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: var(--section-gap, 2rem);
+  padding-top: 1.25rem;
   border-top: 1px solid var(--border);
 }
 
@@ -666,8 +738,8 @@
 /* Notificações (só com sessão iniciada) */
 
 .notifications-section {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
+  margin-top: var(--section-gap, 2rem);
+  padding-top: 1.25rem;
   border-top: 1px solid var(--border);
 }
 
@@ -676,13 +748,50 @@
   margin: 0 0 0.25rem;
 }
 
+.notifications-section > .closed-swaps-details {
+  margin-top: 0;
+}
+
+.notifications-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+}
+
+.notifications-summary__prompt {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.notifications-new-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.notifications-details[open] .notifications-new-badge {
+  display: none;
+}
+
+.notifications-details .closed-swaps-details__body > h2 {
+  margin-top: 0;
+}
+
 .notifications-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--text-h);
 }
 
@@ -778,8 +887,8 @@
 /* Quem está de serviço */
 
 .on-duty-section {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
+  margin-top: var(--section-gap, 2rem);
+  padding-top: 1.25rem;
   border-top: 1px solid var(--border);
 }
 
@@ -848,10 +957,10 @@
 /* Painel de troca (turno clicado) */
 
 .swap-panel {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
+  margin-top: 1.25rem;
+  padding: 1.1rem 1.2rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--surface-radius, 8px);
   background: var(--code-bg);
 }
 
@@ -889,8 +998,8 @@
 }
 
 .swap-option-card {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
@@ -942,8 +1051,7 @@
 .swap-option-card h3.swap-option-title {
   color: var(--shift-red, #dc2626);
   font-weight: 600;
-  letter-spacing: 0.03em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  letter-spacing: 0.02em;
 }
 
 .swap-option-card p {

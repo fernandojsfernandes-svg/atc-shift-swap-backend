@@ -26,7 +26,8 @@
   --shift-yellow: #facc15;
   /* Títulos das opções de troca — mesmo vermelho da legenda «Turno trocado…» (.legend-flag) */
   --swap-option-heading: var(--shift-red);
-  --swap-option-heading-shadow: rgba(0, 0, 0, 0.75);
+  --section-gap: 2rem;
+  --surface-radius: 8px;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -48,7 +49,6 @@
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -57,7 +57,6 @@
 
 @media (max-width: 640px) {
   #root {
-    border-inline: none;
     overflow-x: clip;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -124,8 +123,7 @@ code {
 .swap-option-title {
   color: var(--swap-option-heading, var(--shift-red));
   font-weight: 600;
-  letter-spacing: 0.03em;
-  text-shadow: 0 1px 2px var(--swap-option-heading-shadow);
+  letter-spacing: 0.02em;
   margin: 0 0 0.65rem;
 }
 
