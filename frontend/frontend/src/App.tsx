@@ -358,6 +358,7 @@ function App() {
   const [rejectSwapLoading, setRejectSwapLoading] = useState<number | null>(null)
   const [rejectSwapError, setRejectSwapError] = useState<string | null>(null)
   const [rejectSwapSuccessHint, setRejectSwapSuccessHint] = useState<string | null>(null)
+  const [notificationsDetailsOpen, setNotificationsDetailsOpen] = useState(false)
 
   const [swapActions, setSwapActions] = useState<SwapActionDto[]>([])
   const [swapActionsLoading, setSwapActionsLoading] = useState(false)
@@ -2423,21 +2424,23 @@ function App() {
         <section className="notifications-section">
           <div className="title-row-inline">
             <h2>Notificações</h2>
-            <details className="closed-swaps-details notifications-details">
+            <details
+              className="closed-swaps-details notifications-details"
+              onToggle={(e) => setNotificationsDetailsOpen((e.target as HTMLDetailsElement).open)}
+            >
             <summary className="scale-intro-summary">
               Clique para ver
-              {unreadNotificationCount > 0 && (
+              {(notificationsDetailsOpen || unreadNotificationCount > 0) && (
                 <span className="notifications-new-badge" aria-live="polite">
-                  {unreadNotificationCount === 1
-                    ? '1 nova notificação'
-                    : `${unreadNotificationCount} novas notificações`}
+                  {notificationsDetailsOpen
+                    ? '0 novas notificações'
+                    : unreadNotificationCount === 1
+                      ? '1 nova notificação'
+                      : `${unreadNotificationCount} novas notificações`}
                 </span>
               )}
             </summary>
             <div className="closed-swaps-details__body">
-              <p className="scale-subtitle">
-                Pedidos em que pode aceitar a troca (o colega oferece um turno por um seu compatível).
-              </p>
               <label className="notifications-toggle">
                 <input
                   type="checkbox"

@@ -851,10 +851,6 @@
   vertical-align: 0.15em;
 }
 
-.notifications-details[open] .notifications-new-badge {
-  display: none;
-}
-
 .notifications-toggle {
   display: flex;
   align-items: center;
