@@ -230,6 +230,11 @@ const SHOW_IMPORT_BUTTON = API_BASE.includes('localhost') || API_BASE.includes('
 /** Deve coincidir com `CLEAR_SCHEDULES_CONFIRM_PHRASE` no backend (`routers/importer.py`). */
 const CLEAR_SCHEDULES_CONFIRM = 'APAGAR_TODAS_AS_ESCALAS'
 
+/** Badge de notificações a «0» após fechar o painel (persiste entre login; distinto de `read_at` no servidor). */
+function notificationBadgeClearedStorageKey(userId: number) {
+  return `notif-badge-cleared-until-new:${userId}`
+}
+
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -359,9 +364,14 @@ function App() {
   const [rejectSwapError, setRejectSwapError] = useState<string | null>(null)
   const [rejectSwapSuccessHint, setRejectSwapSuccessHint] = useState<string | null>(null)
   const [notificationsDetailsOpen, setNotificationsDetailsOpen] = useState(false)
-  /** Após fechar o painel, o badge fica em 0 até o n.º de não lidas aumentar (nova notificação) ou chegar a 0. */
+  /**
+   * Após fechar o painel, o badge fica em 0 até o n.º de não lidas aumentar (nova notificação) ou chegar a 0.
+   * Persiste em localStorage por utilizador para sobreviver a logout/login.
+   */
   const [notificationsBadgeClearedUntilNew, setNotificationsBadgeClearedUntilNew] = useState(false)
   const prevUnreadNotificationCountRef = useRef<number | null>(null)
+  /** Evita apagar `notif-badge-cleared-until-new` no 1.º render com lista ainda vazia (antes do fetch). */
+  const notificationsLoadedOnceRef = useRef(false)
 
   const [swapActions, setSwapActions] = useState<SwapActionDto[]>([])
   const [swapActionsLoading, setSwapActionsLoading] = useState(false)
@@ -790,6 +800,7 @@ function App() {
     setRejectSwapError(null)
     setAcceptSwapError(null)
     setNotifications([])
+    notificationsLoadedOnceRef.current = false
   }
 
   function openShiftEdit(shift: ShiftDto) {
@@ -878,6 +889,7 @@ function App() {
       if (res.ok) {
         const data: NotificationDto[] = await res.json()
         setNotifications(data)
+        notificationsLoadedOnceRef.current = true
       }
     } catch {
       // ignore
@@ -946,15 +958,41 @@ function App() {
   const unreadNotificationCount = visibleNotifications.length
 
   useEffect(() => {
+    if (!currentUser?.id) return
+    try {
+      if (localStorage.getItem(notificationBadgeClearedStorageKey(currentUser.id)) === '1') {
+        setNotificationsBadgeClearedUntilNew(true)
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.id])
+
+  useEffect(() => {
+    const uid = currentUser?.id
     const prev = prevUnreadNotificationCountRef.current
     if (prev !== null && unreadNotificationCount > prev) {
       setNotificationsBadgeClearedUntilNew(false)
+      if (uid != null) {
+        try {
+          localStorage.removeItem(notificationBadgeClearedStorageKey(uid))
+        } catch {
+          // ignore
+        }
+      }
     }
     if (unreadNotificationCount === 0) {
       setNotificationsBadgeClearedUntilNew(false)
+      if (uid != null && notificationsLoadedOnceRef.current) {
+        try {
+          localStorage.removeItem(notificationBadgeClearedStorageKey(uid))
+        } catch {
+          // ignore
+        }
+      }
     }
     prevUnreadNotificationCountRef.current = unreadNotificationCount
-  }, [unreadNotificationCount])
+  }, [unreadNotificationCount, currentUser?.id])
 
   const notificationsBadgeEffectiveZero =
     notificationsDetailsOpen ||
@@ -1454,8 +1492,10 @@ function App() {
           <h1>Escala pessoal</h1>
           <details className="scale-intro-details">
             <summary className="scale-intro-summary">
-              <span className="summary-details-closed">Clique para ver</span>
-              <span className="summary-details-open">Clique para fechar</span>
+              <span className="summary-details-toggle">
+                <span className="summary-details-closed">Clique para ver</span>
+                <span className="summary-details-open">Clique para fechar</span>
+              </span>
             </summary>
             <p className="scale-subtitle scale-subtitle--intro">
               N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
@@ -2241,8 +2281,10 @@ function App() {
             <h2>Os meus pedidos de troca</h2>
             <details className="scale-intro-details my-swaps-intro-details">
               <summary className="scale-intro-summary">
-                <span className="summary-details-closed">Clique para ver</span>
-                <span className="summary-details-open">Clique para fechar</span>
+                <span className="summary-details-toggle">
+                  <span className="summary-details-closed">Clique para ver</span>
+                  <span className="summary-details-open">Clique para fechar</span>
+                </span>
               </summary>
               <p className="scale-subtitle scale-subtitle--intro">
                 <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
@@ -2359,8 +2401,10 @@ function App() {
                 <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
                 <details className="closed-swaps-details">
                   <summary className="scale-intro-summary">
-                    <span className="summary-details-closed">Clique para ver</span>
-                    <span className="summary-details-open">Clique para fechar</span>
+                    <span className="summary-details-toggle">
+                      <span className="summary-details-closed">Clique para ver</span>
+                      <span className="summary-details-open">Clique para fechar</span>
+                    </span>
                   </summary>
                   <div className="closed-swaps-details__body">
                   <ul className="my-swaps-list">
@@ -2461,12 +2505,21 @@ function App() {
                 setNotificationsDetailsOpen(open)
                 if (!open) {
                   setNotificationsBadgeClearedUntilNew(true)
+                  if (currentUser?.id) {
+                    try {
+                      localStorage.setItem(notificationBadgeClearedStorageKey(currentUser.id), '1')
+                    } catch {
+                      // ignore
+                    }
+                  }
                 }
               }}
             >
             <summary className="scale-intro-summary">
-              <span className="summary-details-closed">Clique para ver</span>
-              <span className="summary-details-open">Clique para fechar</span>
+              <span className="summary-details-toggle">
+                <span className="summary-details-closed">Clique para ver</span>
+                <span className="summary-details-open">Clique para fechar</span>
+              </span>
               {notificationsBadgeShow && (
                 <span className="notifications-new-badge" aria-live="polite">
                   {notificationsBadgeDisplayCount === 1
@@ -2687,8 +2740,10 @@ function App() {
             <h2>Histórico dos meus pedidos</h2>
             <details className="closed-swaps-details requester-history-details">
             <summary className="scale-intro-summary">
-              <span className="summary-details-closed">Clique para ver</span>
-              <span className="summary-details-open">Clique para fechar</span>
+              <span className="summary-details-toggle">
+                <span className="summary-details-closed">Clique para ver</span>
+                <span className="summary-details-open">Clique para fechar</span>
+              </span>
             </summary>
             <div className="closed-swaps-details__body">
               <p className="scale-subtitle">
