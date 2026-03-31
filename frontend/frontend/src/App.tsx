@@ -1453,7 +1453,10 @@ function App() {
         <div className="title-row-inline">
           <h1>Escala pessoal</h1>
           <details className="scale-intro-details">
-            <summary className="scale-intro-summary">Clique para ver</summary>
+            <summary className="scale-intro-summary">
+              <span className="summary-details-closed">Clique para ver</span>
+              <span className="summary-details-open">Clique para fechar</span>
+            </summary>
             <p className="scale-subtitle scale-subtitle--intro">
               N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
               alterar o n.º ou ao escolher um nome na lista.
@@ -2237,7 +2240,10 @@ function App() {
           <div className="title-row-inline">
             <h2>Os meus pedidos de troca</h2>
             <details className="scale-intro-details my-swaps-intro-details">
-              <summary className="scale-intro-summary">Clique para ver</summary>
+              <summary className="scale-intro-summary">
+                <span className="summary-details-closed">Clique para ver</span>
+                <span className="summary-details-open">Clique para fechar</span>
+              </summary>
               <p className="scale-subtitle scale-subtitle--intro">
                 <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
                 recusados (detalhe também no histórico abaixo).
@@ -2352,7 +2358,10 @@ function App() {
               <div className="title-row-inline">
                 <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
                 <details className="closed-swaps-details">
-                  <summary className="scale-intro-summary">Clique para ver</summary>
+                  <summary className="scale-intro-summary">
+                    <span className="summary-details-closed">Clique para ver</span>
+                    <span className="summary-details-open">Clique para fechar</span>
+                  </summary>
                   <div className="closed-swaps-details__body">
                   <ul className="my-swaps-list">
                   {myClosedSwaps.map((r) => (
@@ -2456,7 +2465,8 @@ function App() {
               }}
             >
             <summary className="scale-intro-summary">
-              Clique para ver
+              <span className="summary-details-closed">Clique para ver</span>
+              <span className="summary-details-open">Clique para fechar</span>
               {notificationsBadgeShow && (
                 <span className="notifications-new-badge" aria-live="polite">
                   {notificationsBadgeDisplayCount === 1
@@ -2676,7 +2686,10 @@ function App() {
           <div className="title-row-inline">
             <h2>Histórico dos meus pedidos</h2>
             <details className="closed-swaps-details requester-history-details">
-            <summary className="scale-intro-summary">Clique para ver</summary>
+            <summary className="scale-intro-summary">
+              <span className="summary-details-closed">Clique para ver</span>
+              <span className="summary-details-open">Clique para fechar</span>
+            </summary>
             <div className="closed-swaps-details__body">
               <p className="scale-subtitle">
                 Respostas aos seus pedidos. Pode apagar linhas (só para si).

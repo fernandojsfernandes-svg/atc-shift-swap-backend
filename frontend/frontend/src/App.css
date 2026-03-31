@@ -149,6 +149,18 @@
   line-height: 1.35;
 }
 
+.scale-intro-summary .summary-details-open {
+  display: none;
+}
+
+details[open] > .scale-intro-summary .summary-details-closed {
+  display: none;
+}
+
+details[open] > .scale-intro-summary .summary-details-open {
+  display: inline;
+}
+
 .scale-intro-summary::-webkit-details-marker {
   display: none;
 }
@@ -841,7 +853,7 @@
   margin-top: 0;
 }
 
-/* Badge à direita do «Clique para ver»; o resumo fica igual ao das outras secções (sem flex no texto). */
+/* Badge à direita do texto do resumo; o resumo fica igual ao das outras secções (sem flex no texto). */
 .scale-intro-summary .notifications-new-badge {
   margin-left: 0.5rem;
 }
