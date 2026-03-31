@@ -129,6 +129,19 @@
   text-align: left;
 }
 
+.collapsible-with-title {
+  margin-top: 1.25rem;
+}
+
+.collapsible-with-title .my-swaps-subtitle {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+}
+
+.collapsible-with-title > .closed-swaps-details {
+  margin-top: 0;
+}
+
 .closed-swaps-details .scale-intro-summary {
   margin-bottom: 0;
 }
@@ -143,13 +156,13 @@
   margin-top: 0;
 }
 
-.my-requester-history-section > .closed-swaps-details {
-  margin-top: 0;
+.my-requester-history-section > h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
 }
 
-.requester-history-details .closed-swaps-details__body > h2 {
+.my-requester-history-section > .closed-swaps-details {
   margin-top: 0;
-  font-size: 1.35rem;
 }
 
 .scale-loading-hint {
@@ -745,7 +758,7 @@
 
 .notifications-section h2 {
   font-size: 1.35rem;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.35rem;
 }
 
 .notifications-section > .closed-swaps-details {
@@ -779,10 +792,6 @@
 
 .notifications-details[open] .notifications-new-badge {
   display: none;
-}
-
-.notifications-details .closed-swaps-details__body > h2 {
-  margin-top: 0;
 }
 
 .notifications-toggle {

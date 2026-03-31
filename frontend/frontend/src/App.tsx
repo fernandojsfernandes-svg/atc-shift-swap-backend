@@ -2323,13 +2323,12 @@ function App() {
             </>
           )}
           {myClosedSwaps.length > 0 && (
-            <details className="closed-swaps-details">
-              <summary className="scale-intro-summary">
-                clique para mostrar as trocas recentemente fechadas
-              </summary>
-              <div className="closed-swaps-details__body">
-                <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
-                <ul className="my-swaps-list">
+            <div className="collapsible-with-title">
+              <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
+              <details className="closed-swaps-details">
+                <summary className="scale-intro-summary">clique para mostrar</summary>
+                <div className="closed-swaps-details__body">
+                  <ul className="my-swaps-list">
                   {myClosedSwaps.map((r) => (
                     <li key={r.id} className="my-swap-item my-swap-item--closed">
                     <div className="my-swap-item-body">
@@ -2407,18 +2406,20 @@ function App() {
                     </div>
                     </li>
                   ))}
-                </ul>
-              </div>
-            </details>
+                  </ul>
+                </div>
+              </details>
+            </div>
           )}
         </section>
       )}
 
       {localStorage.getItem('token') && (
         <section className="notifications-section">
+          <h2>Notificações</h2>
           <details className="closed-swaps-details notifications-details">
             <summary className="scale-intro-summary notifications-summary">
-              <span className="notifications-summary__prompt">clique para mostrar as notificações</span>
+              <span className="notifications-summary__prompt">clique para mostrar</span>
               {unreadNotificationCount > 0 && (
                 <span className="notifications-new-badge" aria-live="polite">
                   {unreadNotificationCount === 1
@@ -2428,7 +2429,6 @@ function App() {
               )}
             </summary>
             <div className="closed-swaps-details__body">
-              <h2>Notificações</h2>
               <p className="scale-subtitle">
                 Pedidos em que pode aceitar a troca (o colega oferece um turno por um seu compatível).
               </p>
@@ -2638,12 +2638,10 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="my-swaps-section my-requester-history-section">
+          <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
           <details className="closed-swaps-details requester-history-details">
-            <summary className="scale-intro-summary">
-              clique para mostrar o histórico dos meus pedidos (aceites e recusas)
-            </summary>
+            <summary className="scale-intro-summary">clique para mostrar</summary>
             <div className="closed-swaps-details__body">
-              <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
               <p className="scale-subtitle">
                 Respostas aos seus pedidos. Pode apagar linhas (só para si).
               </p>
