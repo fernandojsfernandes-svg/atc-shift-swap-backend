@@ -642,6 +642,12 @@ function App() {
     }
   }
 
+  function clearOnDutyResults() {
+    setOnDutyList([])
+    setOnDutyError(null)
+    setOnDutySearched(false)
+  }
+
   function originStatusLabel(
     origin_status: string | null | undefined,
     team: string | null,
@@ -768,6 +774,17 @@ function App() {
   }
 
   function doLogout() {
+    const badgeUid = currentUser?.id
+    if (badgeUid != null) {
+      try {
+        localStorage.removeItem(notificationBadgeClearedStorageKey(badgeUid))
+      } catch {
+        // ignore
+      }
+    }
+    setNotificationsDetailsOpen(false)
+    setNotificationsBadgeClearedUntilNew(false)
+    prevUnreadNotificationCountRef.current = null
     localStorage.removeItem('token')
     setCurrentUser(null)
     // manter employeeNumber (o utilizador pode querer comparar) ou pode limpar se preferires
@@ -801,6 +818,7 @@ function App() {
     setAcceptSwapError(null)
     setNotifications([])
     notificationsLoadedOnceRef.current = false
+    setNotificationsLoading(false)
   }
 
   function openShiftEdit(shift: ShiftDto) {
@@ -1928,14 +1946,27 @@ function App() {
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            className="btn-load btn-load--light"
-            onClick={loadOnDuty}
-            disabled={onDutyLoading}
-          >
-            {onDutyLoading ? 'A carregar...' : 'Ver quem está'}
-          </button>
+          <div className="on-duty-query-actions">
+            <button
+              type="button"
+              className="btn-load btn-load--light"
+              onClick={loadOnDuty}
+              disabled={onDutyLoading}
+            >
+              {onDutyLoading ? 'A carregar...' : 'Ver quem está'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={clearOnDutyResults}
+              disabled={
+                onDutyLoading ||
+                (!onDutySearched && onDutyList.length === 0 && !onDutyError)
+              }
+            >
+              Limpar lista
+            </button>
+          </div>
         </div>
         {onDutyError && (
           <div className="scale-error">Erro: {onDutyError}</div>

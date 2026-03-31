@@ -1137,6 +1137,20 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
     width: 100%;
   }
 
+  /* Notificações: texto um pouco mais pequeno no telemóvel (mantém maiúsculas do conteúdo) */
+  .notifications-section .notifications-item-body {
+    font-size: 0.85rem;
+    line-height: 1.42;
+  }
+
+  .notifications-section .notifications-wanted-list {
+    font-size: 0.82rem;
+  }
+
+  .notifications-section .notifications-wanted-hint {
+    font-size: 0.78rem;
+  }
+
   .my-swaps-section .my-swaps-list > li {
     text-align: left;
   }
@@ -1188,6 +1202,13 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
 .on-duty-year-input {
   width: 4.75rem;
   max-width: 100%;
+}
+
+.on-duty-query-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
 }
 
 .on-duty-list {
