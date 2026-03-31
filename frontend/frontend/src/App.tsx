@@ -230,7 +230,7 @@ const SHOW_IMPORT_BUTTON = API_BASE.includes('localhost') || API_BASE.includes('
 /** Deve coincidir com `CLEAR_SCHEDULES_CONFIRM_PHRASE` no backend (`routers/importer.py`). */
 const CLEAR_SCHEDULES_CONFIRM = 'APAGAR_TODAS_AS_ESCALAS'
 
-/** Badge de notificações a «0» após fechar o painel (persiste entre login; distinto de `read_at` no servidor). */
+/** Badge de notificações a «0» após fechar o painel ou logout (persiste entre login; distinto de `read_at` no servidor). */
 function notificationBadgeClearedStorageKey(userId: number) {
   return `notif-badge-cleared-until-new:${userId}`
 }
@@ -777,7 +777,7 @@ function App() {
     const badgeUid = currentUser?.id
     if (badgeUid != null) {
       try {
-        localStorage.removeItem(notificationBadgeClearedStorageKey(badgeUid))
+        localStorage.setItem(notificationBadgeClearedStorageKey(badgeUid), '1')
       } catch {
         // ignore
       }
@@ -908,6 +908,8 @@ function App() {
         const data: NotificationDto[] = await res.json()
         setNotifications(data)
         notificationsLoadedOnceRef.current = true
+        const unread = data.filter((n) => !n.read_at).length
+        prevUnreadNotificationCountRef.current = unread
       }
     } catch {
       // ignore
@@ -999,9 +1001,9 @@ function App() {
         }
       }
     }
-    if (unreadNotificationCount === 0) {
+    if (unreadNotificationCount === 0 && notificationsLoadedOnceRef.current) {
       setNotificationsBadgeClearedUntilNew(false)
-      if (uid != null && notificationsLoadedOnceRef.current) {
+      if (uid != null) {
         try {
           localStorage.removeItem(notificationBadgeClearedStorageKey(uid))
         } catch {
