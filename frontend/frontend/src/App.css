@@ -1478,17 +1478,19 @@
     font-size: 1.4rem;
   }
 
+  /* Manter «Clique para ver» à direita do título (igual ao desktop) */
   .title-row-inline > details {
-    position: static;
-    max-width: none;
-    text-align: left;
-    margin-top: 0.35rem;
+    max-width: min(11rem, 58%);
   }
 
   .title-row-inline > h1,
   .title-row-inline > h2,
   .title-row-inline > h3 {
-    padding-right: 0;
+    padding-right: min(42%, 11.5rem);
+  }
+
+  .title-row-inline .scale-intro-summary {
+    font-size: 0.78rem;
   }
 
   .scale-subtitle {

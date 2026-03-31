@@ -2646,7 +2646,7 @@ function App() {
       {localStorage.getItem('token') && (
         <section className="my-swaps-section my-requester-history-section">
           <div className="title-row-inline">
-            <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
+            <h2>Histórico dos meus pedidos</h2>
             <details className="closed-swaps-details requester-history-details">
             <summary className="scale-intro-summary">Clique para ver</summary>
             <div className="closed-swaps-details__body">
