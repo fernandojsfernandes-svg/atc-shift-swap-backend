@@ -1431,7 +1431,7 @@ function App() {
         <div className="title-row-inline">
           <h1>Escala pessoal</h1>
           <details className="scale-intro-details">
-            <summary className="scale-intro-summary">clique para mostrar</summary>
+            <summary className="scale-intro-summary">Clique para ver</summary>
             <p className="scale-subtitle scale-subtitle--intro">
               N.º de funcionário (ou pesquise por nome com sessão iniciada) e mês. A escala carrega ao mudar o mês, ao
               alterar o n.º ou ao escolher um nome na lista.
@@ -1805,9 +1805,6 @@ function App() {
 
       <section className="on-duty-section">
         <h2>Quem está de serviço?</h2>
-        <p className="scale-subtitle">
-          Mês e ano seguem o calendário; altere aqui para consultar outro período na base de dados.
-        </p>
         <div className="on-duty-controls">
           <label className="control-group">
             <span>Dia</span>
@@ -2215,11 +2212,16 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="my-swaps-section">
-          <h2>Os meus pedidos de troca</h2>
-          <p className="scale-subtitle">
-            <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
-            recusados (detalhe também no histórico abaixo).
-          </p>
+          <div className="title-row-inline">
+            <h2>Os meus pedidos de troca</h2>
+            <details className="scale-intro-details my-swaps-intro-details">
+              <summary className="scale-intro-summary">Clique para ver</summary>
+              <p className="scale-subtitle scale-subtitle--intro">
+                <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
+                recusados (detalhe também no histórico abaixo).
+              </p>
+            </details>
+          </div>
           <button
             type="button"
             className="btn-load btn-load--light"
@@ -2328,7 +2330,7 @@ function App() {
               <div className="title-row-inline">
                 <h3 className="my-swaps-subtitle">Fechados recentemente</h3>
                 <details className="closed-swaps-details">
-                  <summary className="scale-intro-summary">clique para mostrar</summary>
+                  <summary className="scale-intro-summary">Clique para ver</summary>
                   <div className="closed-swaps-details__body">
                   <ul className="my-swaps-list">
                   {myClosedSwaps.map((r) => (
@@ -2423,7 +2425,7 @@ function App() {
             <h2>Notificações</h2>
             <details className="closed-swaps-details notifications-details">
             <summary className="scale-intro-summary">
-              clique para mostrar
+              Clique para ver
               {unreadNotificationCount > 0 && (
                 <span className="notifications-new-badge" aria-live="polite">
                   {unreadNotificationCount === 1
@@ -2646,7 +2648,7 @@ function App() {
           <div className="title-row-inline">
             <h2>Histórico dos meus pedidos (aceites e recusas)</h2>
             <details className="closed-swaps-details requester-history-details">
-            <summary className="scale-intro-summary">clique para mostrar</summary>
+            <summary className="scale-intro-summary">Clique para ver</summary>
             <div className="closed-swaps-details__body">
               <p className="scale-subtitle">
                 Respostas aos seus pedidos. Pode apagar linhas (só para si).

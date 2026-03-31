@@ -91,7 +91,7 @@
   max-width: 40rem;
 }
 
-/* Título à esquerda, «clique para mostrar» à direita (menos altura em ecrãs largos) */
+/* Título à esquerda, «Clique para ver» à direita (menos altura em ecrãs largos) */
 .title-row-inline {
   position: relative;
   margin-bottom: 0.85rem;
@@ -400,17 +400,17 @@
   cursor: pointer;
 }
 
-/* Botões em branco com letras pretas: Carregar escala, Criar pedido (mesmo/outros dias), Ver quem está */
+/* Botões em branco — sem borda vermelha (contrasta mal no fundo claro) */
 .btn-load--light {
   background: #fff !important;
   color: #111 !important;
-  border: 1px solid var(--shift-red, #dc2626) !important;
+  border: 1px solid #d1d5db !important;
 }
 
 .btn-load--light:hover:not(:disabled) {
   background: #eee !important;
   filter: none;
-  border-color: #f87171 !important;
+  border-color: #9ca3af !important;
 }
 
 .btn-load:hover:not(:disabled) {
@@ -736,6 +736,18 @@
   margin: 0 0 0.25rem;
 }
 
+.my-swaps-section .title-row-inline > h2 {
+  margin: 0;
+}
+
+.my-swaps-section .title-row-inline {
+  margin-bottom: 0.5rem;
+}
+
+.my-swaps-intro-details.scale-intro-details {
+  margin-bottom: 0;
+}
+
 .my-swaps-subtitle {
   font-size: 1.05rem;
   margin: 1rem 0 0.5rem;
@@ -820,7 +832,7 @@
   margin-top: 0;
 }
 
-/* Badge à direita do «clique para mostrar»; o resumo fica igual ao das outras secções (sem flex no texto). */
+/* Badge à direita do «Clique para ver»; o resumo fica igual ao das outras secções (sem flex no texto). */
 .scale-intro-summary .notifications-new-badge {
   margin-left: 0.5rem;
 }
@@ -952,7 +964,7 @@
 
 .on-duty-section h2 {
   font-size: 1.35rem;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.85rem;
 }
 
 .on-duty-controls {
