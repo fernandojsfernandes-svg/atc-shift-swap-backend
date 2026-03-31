@@ -472,7 +472,7 @@ function App() {
 
   useEffect(() => {
     if (!swapPartnerBubble) return
-    const t = setTimeout(() => setSwapPartnerBubble(null), 2000)
+    const t = setTimeout(() => setSwapPartnerBubble(null), 1000)
     return () => clearTimeout(t)
   }, [swapPartnerBubble])
 
@@ -1859,7 +1859,7 @@ function App() {
               <span><em>Cinzento claro</em> Troca NAV</span>
               <span><em>Cinzento escuro</em> Troca serviço</span>
               <span>
-                <em>Pressione longo</em> na troca serviço (com registo de troca aceite) para ver com quem trocou — mensagem 2 s por cima do dia · no PC: clique direito
+                <em>Pressione longo</em> na troca serviço (com registo de troca aceite) para ver com quem trocou — mensagem 1 s por cima do dia · no PC: clique direito
               </span>
               <span><em>Vermelho</em> BHT</span>
               <span><em>Amarelo</em> TS</span>
@@ -2538,13 +2538,6 @@ function App() {
                 <span className="summary-details-closed">Clique para ver</span>
                 <span className="summary-details-open">Clique para fechar</span>
               </span>
-              {notificationsBadgeShow && (
-                <span className="notifications-new-badge notifications-new-badge--inline-summary" aria-live="polite">
-                  {notificationsBadgeDisplayCount === 1
-                    ? '1 nova notificação'
-                    : `${notificationsBadgeDisplayCount} novas notificações`}
-                </span>
-              )}
             </summary>
             <div className="closed-swaps-details__body">
               <label className="notifications-toggle">

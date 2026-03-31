@@ -326,6 +326,19 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   color: var(--text);
 }
 
+/* Histórico dos meus pedidos: texto à esquerda (evita herdar centrado do #root / flex-end do resumo) */
+.my-requester-history-section {
+  text-align: left;
+}
+
+.my-requester-history-section .notifications-item.requester-history-item,
+.my-requester-history-section .notifications-item-body,
+.my-requester-history-section .requester-history-message,
+.my-requester-history-section .requester-history-message p,
+.my-requester-history-section .requester-history-package-line {
+  text-align: left;
+}
+
 .scale-loading-hint {
   margin: 0;
   font-size: 0.9rem;
@@ -967,6 +980,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   margin-top: var(--section-gap, 2rem);
   padding-top: 1.25rem;
   border-top: 1px solid var(--border);
+  text-align: left;
 }
 
 .notifications-section h2 {
@@ -983,9 +997,12 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   margin: 0;
 }
 
-/* Desktop: badge ao lado do resumo; telemóvel: só o --under-h2 (ver media query) */
+/* Badge só por baixo do título «Notificações» (PC e telemóvel) */
 .notifications-new-badge--under-h2 {
-  display: none;
+  display: inline-block;
+  margin-top: 0.35rem;
+  margin-left: 0;
+  vertical-align: baseline;
 }
 
 .notifications-section .title-row-inline {
@@ -994,11 +1011,6 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
 
 .notifications-section > .closed-swaps-details {
   margin-top: 0;
-}
-
-/* Badge à direita do texto do resumo (desktop); em telemóvel usa-se cópia sob o título */
-.scale-intro-summary .notifications-new-badge--inline-summary {
-  margin-left: 0.5rem;
 }
 
 .notifications-new-badge {
@@ -1613,6 +1625,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
       max(1rem, env(safe-area-inset-right, 0px))
       max(1rem, env(safe-area-inset-bottom, 0px))
       max(1rem, env(safe-area-inset-left, 0px));
+    text-align: left;
   }
 
   .login-bar {
@@ -1675,17 +1688,6 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
     padding-right: min(42%, 11.5rem);
   }
 
-  .notifications-new-badge--under-h2 {
-    display: inline-block;
-    margin-top: 0.35rem;
-    margin-left: 0;
-    vertical-align: baseline;
-  }
-
-  .notifications-new-badge--inline-summary {
-    display: none !important;
-  }
-
   .title-row-inline > details {
     position: absolute;
     top: 0;
@@ -1709,6 +1711,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
     grid-row: unset;
     justify-self: unset;
     text-align: left;
+    justify-content: flex-start;
     width: 100%;
     max-width: none;
     flex-wrap: wrap;
@@ -1737,6 +1740,10 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   .summary-details-toggle {
     min-width: 0;
     max-width: 100%;
+  }
+
+  .title-row-inline > details[open] .summary-details-toggle {
+    justify-items: start;
   }
 
   .scale-subtitle {
