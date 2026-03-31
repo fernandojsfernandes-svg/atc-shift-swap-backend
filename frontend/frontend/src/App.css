@@ -824,7 +824,8 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0;
+  /* Espaço entre «Legenda —» e «clique para ver/fechar» (gap:0 colava os dois spans) */
+  gap: 0.35rem;
 }
 
 .calendar-legend-summary__title {
@@ -894,21 +895,9 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   border-top: 1px solid var(--border);
 }
 
-.my-swaps-section h2 {
+.my-swaps-section > h2 {
   font-size: 1.35rem;
-  margin: 0 0 0.25rem;
-}
-
-.my-swaps-section .title-row-inline > h2 {
-  margin: 0;
-}
-
-.my-swaps-section .title-row-inline {
-  margin-bottom: 0.5rem;
-}
-
-.my-swaps-intro-details.scale-intro-details {
-  margin-bottom: 0;
+  margin: 0 0 0.85rem;
 }
 
 .my-swaps-subtitle {

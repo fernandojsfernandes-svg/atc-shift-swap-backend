@@ -1848,7 +1848,7 @@ function App() {
           </div>
           <details className="calendar-legend-details">
             <summary className="calendar-legend-summary">
-              <span className="calendar-legend-summary__title">Legenda — </span>
+              <span className="calendar-legend-summary__title">Legenda —</span>
               <span className="summary-details-toggle calendar-legend-summary__action">
                 <span className="summary-details-closed">clique para ver</span>
                 <span className="summary-details-open">clique para fechar</span>
@@ -2283,21 +2283,7 @@ function App() {
 
       {localStorage.getItem('token') && (
         <section className="my-swaps-section">
-          <div className="title-row-inline">
-            <h2>Os meus pedidos de troca</h2>
-            <details className="scale-intro-details my-swaps-intro-details">
-              <summary className="scale-intro-summary">
-                <span className="summary-details-toggle">
-                  <span className="summary-details-closed">Clique para ver</span>
-                  <span className="summary-details-open">Clique para fechar</span>
-                </span>
-              </summary>
-              <p className="scale-subtitle scale-subtitle--intro">
-                <strong>Em aberto</strong>: à espera de resposta. <strong>Fechados recentemente</strong>: aceites ou
-                recusados (detalhe também no histórico abaixo).
-              </p>
-            </details>
-          </div>
+          <h2>Os meus pedidos de troca</h2>
           <button
             type="button"
             className="btn-load btn-load--light"
@@ -2546,7 +2532,7 @@ function App() {
                   checked={notificationsEnabled}
                   onChange={(e) => toggleNotificationsPreference(e.target.checked)}
                 />
-                <span>Receber notificações quando um colega criar um pedido que eu possa satisfazer</span>
+                <span>Receber notificações de trocas</span>
               </label>
               <button
                 type="button"
