@@ -1561,8 +1561,61 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
     font-size: 1.4rem;
   }
 
+  /*
+   * Telemóvel: evitar grid + display:contents em <details> (quebra layout em WebKit).
+   * Fechado: resumo absoluto à direita do título; aberto: bloco normal a largura total.
+   */
+  .title-row-inline {
+    display: block;
+  }
+
+  .title-row-inline > h1,
+  .title-row-inline > h2,
+  .title-row-inline > h3 {
+    padding-right: min(42%, 11.5rem);
+  }
+
   .title-row-inline > details {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
     max-width: min(11rem, 58%);
+    grid-column: unset;
+    grid-row: unset;
+  }
+
+  .title-row-inline > details[open] {
+    position: static;
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin-top: 0.65rem;
+  }
+
+  .title-row-inline > details[open] > .scale-intro-summary {
+    grid-column: unset;
+    grid-row: unset;
+    justify-self: unset;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+    flex-wrap: wrap;
+  }
+
+  .title-row-inline > details[open] > *:not(.scale-intro-summary) {
+    grid-column: unset;
+    grid-row: unset;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+  }
+
+  .title-row-inline:has(> details[open]) > h1,
+  .title-row-inline:has(> details[open]) > h2,
+  .title-row-inline:has(> details[open]) > h3 {
+    padding-right: 0;
   }
 
   .title-row-inline .scale-intro-summary {
@@ -1570,7 +1623,8 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   }
 
   .summary-details-toggle {
-    min-width: min(10.5rem, 100%);
+    min-width: 0;
+    max-width: 100%;
   }
 
   .scale-subtitle {
