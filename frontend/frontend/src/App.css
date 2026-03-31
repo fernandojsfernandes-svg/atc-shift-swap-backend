@@ -255,6 +255,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   margin-top: 0.5rem;
   padding-top: 0.35rem;
   border-top: 1px solid var(--border);
+  text-align: left;
 }
 
 .closed-swaps-details__body .my-swaps-subtitle {
@@ -927,6 +928,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--code-bg);
+  text-align: left;
 }
 
 .my-swap-item-body {
@@ -938,12 +940,16 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
+  text-align: left;
+  width: 100%;
 }
 
 /* Resumo do pedido: uma linha (ex.: #73 · Troca direta · M · dia 27 março) */
 .my-swap-summary-line {
   display: block;
   line-height: 1.45;
+  text-align: left;
+  width: 100%;
 }
 
 .my-swap-detail {
@@ -951,6 +957,9 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   font-size: 0.88rem;
   color: var(--text);
   line-height: 1.4;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* «Para: …» sempre na linha seguinte ao resumo (troca direta). */
@@ -1048,6 +1057,7 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--code-bg);
+  text-align: left;
 }
 
 .notifications-item--read {
@@ -1059,10 +1069,16 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   min-width: 0;
   font-size: 0.95rem;
   color: var(--text-h);
+  text-align: left;
+}
+
+.notifications-item-body > span {
+  text-align: left;
 }
 
 .notifications-can-accept-text {
   display: block;
+  text-align: left;
 }
 
 .notifications-wanted-list {
@@ -1070,10 +1086,12 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   padding-left: 1.25rem;
   color: var(--text-h);
   font-size: 0.92rem;
+  text-align: left;
 }
 
 .notifications-wanted-list li {
   margin-bottom: 0.25rem;
+  text-align: left;
 }
 
 .notifications-wanted-hint {
@@ -1112,6 +1130,15 @@ details[open] > .scale-intro-summary .summary-details-toggle .summary-details-op
   .notifications-item-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .notifications-item-body > span {
+    display: block;
+    width: 100%;
+  }
+
+  .my-swaps-section .my-swaps-list > li {
+    text-align: left;
   }
 }
 
